@@ -9,6 +9,7 @@
   import Alerts from './lib/Alerts.svelte'
   import Settings from './lib/Settings.svelte'
   import { gcal } from './lib/gcal.svelte'
+  import { cloud } from './lib/cloud.svelte'
 
   let sidebarOpen = $state(false)
 
@@ -29,13 +30,37 @@
     return () => clearTimeout(h)
   })
 
+  // encrypted cloud sync: shortly after local changes
+  $effect(() => {
+    if (!store.ready || !cloud.enabled) return
+    store.syncEntities()
+    const h = setTimeout(() => cloud.sync(), 5000)
+    return () => clearTimeout(h)
+  })
+
   onMount(() => {
-    store.init().then(() => { gcal.init(); store.checkReminders() })
-    const tick = setInterval(() => store.ready && store.checkReminders(), 20000)
-    const vis = () => document.visibilityState === 'visible' && store.ready && store.checkReminders()
+    // ask the browser not to evict our data when the disk is low
+    void navigator.storage?.persist?.()
+    store.init().then(async () => {
+      gcal.init()
+      await cloud.init()
+      store.checkReminders()
+      void cloud.sync()
+    })
+    const tick = setInterval(() => {
+      if (!store.ready) return
+      store.checkReminders()
+    }, 20000)
+    const pull = setInterval(() => document.visibilityState === 'visible' && cloud.sync(), 60000)
+    const vis = () => {
+      if (document.visibilityState !== 'visible' || !store.ready) return
+      store.checkReminders()
+      void cloud.sync()
+    }
     document.addEventListener('visibilitychange', vis)
     return () => {
       clearInterval(tick)
+      clearInterval(pull)
       document.removeEventListener('visibilitychange', vis)
     }
   })

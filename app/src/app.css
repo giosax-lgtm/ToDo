@@ -227,3 +227,10 @@ textarea { resize: vertical; }
 .link { color: var(--side-active); text-decoration: underline; }
 
 @media (max-width: 760px) { .sidebar { position: fixed; } }
+
+.recovery { display: flex; flex-direction: column; gap: 8px; background: #fff8e1; border: 1px solid #e2a400; border-radius: 10px; padding: 12px; }
+.recovery code { word-break: break-all; font-size: 1rem; background: #fff; padding: 8px; border-radius: 8px; user-select: all; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.gstatus.syncing { background: #eef6fc; }
+
+.filebtn { cursor: pointer; }

@@ -1,6 +1,9 @@
 <script lang="ts">
   import { store } from './store.svelte'
   import { gcal } from './gcal.svelte'
+  import { cloud } from './cloud.svelte'
+  import { exportBackup, importBackup } from './backup'
+  import { onMount } from 'svelte'
 
   const FONTS: [string, string][] = [
     ['Lato, "Segoe UI", system-ui, sans-serif', 'Lato / Segoe UI (default)'],
@@ -14,6 +17,56 @@
 
   const close = () => (store.settingsOpen = false)
   const ago = (t: number | null) => (t ? new Date(t).toLocaleTimeString() : '—')
+
+  let persisted = $state<boolean | null>(null)
+  let bpass = $state('')
+  let bmsg = $state('')
+  onMount(async () => { persisted = (await navigator.storage?.persisted?.()) ?? null })
+
+  async function doExport() {
+    if (bpass.length < 8) { bmsg = 'Choose a passphrase of at least 8 characters for the backup file'; return }
+    const blob = await exportBackup(bpass)
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `todo-backup-${new Date().toISOString().slice(0, 10)}.todo-backup.json`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+    bmsg = 'Backup downloaded. Keep it somewhere safe, with its passphrase.'
+  }
+
+  async function doImport(e: Event) {
+    const input = e.currentTarget as HTMLInputElement
+    const f = input.files?.[0]
+    input.value = ''
+    if (!f) return
+    if (bpass.length < 1) { bmsg = 'Enter the backup passphrase first'; return }
+    if (!confirm('Importing REPLACES all data on this device with the backup. Continue?')) return
+    try {
+      const n = await importBackup(await f.text(), bpass)
+      bmsg = `Imported ${n} records.`
+    } catch (err) {
+      bmsg = (err as Error).message
+    }
+  }
+
+  let pass = $state('')
+  let pass2 = $state('')
+  let recoveryMode = $state(false)
+  let saved = $state(false)
+
+  const weak = $derived(pass.length > 0 && pass.length < 12)
+
+  async function create() {
+    if (pass.length < 12) { cloud.message = 'Use at least 12 characters (a few random words work well)'; cloud.status = 'error'; return }
+    if (pass !== pass2) { cloud.message = 'The two passphrases differ'; cloud.status = 'error'; return }
+    await cloud.create(pass)
+    pass = pass2 = ''
+  }
+
+  async function join() {
+    await cloud.join(pass, recoveryMode ? 'recovery' : 'passphrase')
+    pass = ''
+  }
 
   function resetLook() {
     for (const k of ['uiScale', 'textScale', 'font', 'colW']) store.setPref(k, undefined)
@@ -82,6 +135,69 @@
         {:else if gcal.status === 'error'}⚠ {gcal.message}
         {:else}Not connected{/if}
         {#if gcal.status === 'reconnect' && gcal.message}<br /><small>{gcal.message}</small>{/if}
+      </div>
+    </section>
+
+    <section>
+      <h3>Backup</h3>
+      <small class="muted">
+        Data lives in this browser's storage. Deleting "cookies and site data" erases it. Use the encrypted sync and/or a backup file.
+        Persistent storage: <b>{persisted === null ? 'unknown' : persisted ? 'granted' : 'not granted (browser may evict data if the disk is full)'}</b>.
+      </small>
+      <label class="srow">Backup passphrase
+        <input type="password" autocomplete="off" bind:value={bpass} />
+      </label>
+      <div class="presets">
+        <button class="chip primary" onclick={doExport}>Export encrypted backup</button>
+        <label class="chip filebtn">Import backup…<input type="file" accept=".json,application/json" onchange={doImport} hidden /></label>
+      </div>
+      {#if bmsg}<div class="gstatus">{bmsg}</div>{/if}
+    </section>
+
+    <section>
+      <h3>Encrypted sync (Google Drive)</h3>
+      <small class="muted">
+        Your data is encrypted on this device (AES-256) before it reaches Google Drive, in a hidden app-only folder.
+        Google cannot read it. Needs the Client ID above (see SETUP.md).
+      </small>
+
+      {#if cloud.recoveryKey}
+        <div class="recovery">
+          <b>Your recovery key — save it now (password manager or paper). It is shown only once.</b>
+          <code>{cloud.recoveryKey}</code>
+          <div class="presets">
+            <button class="chip" onclick={() => navigator.clipboard.writeText(cloud.recoveryKey!)}>Copy</button>
+          </div>
+          <label class="srow row"><span>I saved the recovery key</span><input type="checkbox" bind:checked={saved} /></label>
+          <button class="chip primary" disabled={!saved} onclick={() => { cloud.recoveryKey = null; saved = false }}>Done</button>
+          <small class="muted">If you lose both the passphrase and this key, the synced data cannot be recovered.</small>
+        </div>
+      {:else if !cloud.enabled}
+        <label class="srow">Passphrase (min. 12 characters)
+          <input type="password" autocomplete="off" bind:value={pass} />
+        </label>
+        {#if weak}<small class="muted">Too short.</small>{/if}
+        <label class="srow">Repeat passphrase (only to create)
+          <input type="password" autocomplete="off" bind:value={pass2} />
+        </label>
+        <label class="srow row"><span>Unlock with recovery key instead</span><input type="checkbox" bind:checked={recoveryMode} /></label>
+        <div class="presets">
+          <button class="chip primary" onclick={create}>Create encrypted vault (first device)</button>
+          <button class="chip" onclick={join}>Unlock existing vault (other device)</button>
+        </div>
+      {:else}
+        <div class="presets">
+          <button class="chip primary" onclick={() => cloud.sync()}>Sync now</button>
+          <button class="chip danger" onclick={() => { if (confirm('Forget the key on this device? Cloud data stays; you will need the passphrase to reconnect.')) cloud.lock() }}>Lock / forget key on this device</button>
+        </div>
+      {/if}
+
+      <div class="gstatus {cloud.status}">
+        {#if cloud.status === 'ok'}✓ Sync active · last sync {ago(cloud.lastSync)}
+        {:else if cloud.status === 'syncing'}Syncing…
+        {:else if cloud.status === 'locked'}Locked — enter the passphrase
+        {:else if cloud.status === 'error'}⚠ {cloud.message}
+        {:else}Sync is off{/if}
       </div>
     </section>
   </div>

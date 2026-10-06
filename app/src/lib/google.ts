@@ -22,6 +22,12 @@ declare global {
   interface Window { google?: GoogleGlobal }
 }
 
+// One consent covers both features: reminders (Calendar) and encrypted sync (Drive app folder).
+export const ALL_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.app.created', // only calendars/events this app created
+  'https://www.googleapis.com/auth/drive.appdata', // hidden app-only folder in Drive
+].join(' ')
+
 let loading: Promise<void> | null = null
 export function loadGis(): Promise<void> {
   if (window.google?.accounts) return Promise.resolve()

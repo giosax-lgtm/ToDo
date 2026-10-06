@@ -118,23 +118,28 @@ class AppStore {
   }
 
   // ---------- load ----------
-  async init() {
-    const [projects, columns, tasks, fields, options, views, settings] = await Promise.all([
+  /** (Re)read all data tables from IndexedDB into memory. */
+  private async loadTables() {
+    const [projects, columns, tasks, fields, options, views] = await Promise.all([
       db.projects.toArray(),
       db.columns.toArray(),
       db.tasks.toArray(),
       db.fields.toArray(),
       db.options.toArray(),
       db.views.toArray(),
-      db.settings.toArray(),
     ])
-    settings.forEach((s) => this.settings.set(s.key, s.value))
     this.projects = projects.sort((a, b) => a.order - b.order)
     this.columns = columns
     this.tasks = tasks.map((t) => ({ ...t, reminders: t.reminders ?? [] }))
     this.fields = fields.sort((a, b) => a.order - b.order)
     this.options = options.map((o, i) => ({ ...o, order: o.order ?? i }))
     this.views = views
+  }
+
+  async init() {
+    const settings = await db.settings.toArray()
+    settings.forEach((s) => !s.key.startsWith('x:') && this.settings.set(s.key, s.value)) // x: = sync internals
+    await this.loadTables()
     if (!this.projects.length) await this.seed()
     for (const p of this.projects) if (!this.views.some((v) => v.projectId === p.id)) await this.seedViews(p.id)
     const lastId = this.settings.get('currentProjectId') as string | undefined
@@ -149,6 +154,51 @@ class AppStore {
     const fScope = await this.addField('Scope')
     await this.addOption(fProject.id, 'Other', 'brown')
     await this.addOption(fScope.id, 'other', 'lime')
+  }
+
+  // ---------- cloud sync support ----------
+  /** Every synced record, keyed "table:id". */
+  syncEntities(): Record<string, unknown> {
+    const out: Record<string, unknown> = {}
+    const add = (table: string, list: { id: string }[]) => list.forEach((e) => (out[`${table}:${e.id}`] = plain(e)))
+    add('projects', this.projects)
+    add('columns', this.columns)
+    add('tasks', this.tasks)
+    add('fields', this.fields)
+    add('options', this.options)
+    add('views', this.views.map((v) => ({ ...v, search: '' })))
+    return out
+  }
+
+  /** Write remote changes to IndexedDB (data === null deletes) and refresh the in-memory state. */
+  async applySync(changes: Map<string, unknown | null>) {
+    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views }
+    const put: Record<string, unknown[]> = {}
+    const del: Record<string, string[]> = {}
+    for (const [key, data] of changes) {
+      const i = key.indexOf(':')
+      const table = key.slice(0, i)
+      if (!(table in tables)) continue
+      if (data === null) (del[table] ??= []).push(key.slice(i + 1))
+      else (put[table] ??= []).push(data)
+    }
+    await db.transaction('rw', Object.values(tables), async () => {
+      for (const [t, ids] of Object.entries(del)) await (tables as Record<string, { bulkDelete(k: string[]): Promise<void> }>)[t].bulkDelete(ids)
+      for (const [t, rows] of Object.entries(put)) await (tables as Record<string, { bulkPut(r: unknown[]): Promise<unknown> }>)[t].bulkPut(rows)
+    })
+    await this.loadTables()
+    for (const p of this.projects) if (!this.views.some((v) => v.projectId === p.id)) await this.seedViews(p.id)
+    if (!this.projects.some((p) => p.id === this.currentProjectId)) this.currentProjectId = this.projects[0]?.id ?? ''
+    if (this.currentProjectId) this.loadView()
+    if (this.openTaskId && !this.tasks.some((t) => t.id === this.openTaskId)) this.openTaskId = null
+  }
+
+  /** Remove all local data (used when joining an existing cloud vault from a fresh device). */
+  async wipeAll() {
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views], async () => {
+      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear()])
+    })
+    await this.loadTables()
   }
 
   // ---------- views ----------

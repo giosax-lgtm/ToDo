@@ -1,10 +1,9 @@
 import { store, toLocalInput } from './store.svelte'
-import { forgetToken, getToken, hasValidToken, revokeToken } from './google'
+import { ALL_SCOPES, forgetToken, getToken, hasValidToken, revokeToken } from './google'
+import { cloud } from './cloud.svelte'
 import type { Reminder, Task } from './types'
 
 const API = 'https://www.googleapis.com/calendar/v3'
-// Only lets the app manage calendars/events it created itself.
-export const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created'
 const CAL_NAME = 'To-Do Reminders'
 
 const RRULE: Record<string, string> = {
@@ -33,7 +32,7 @@ class GCal {
     if (!this.clientId.trim()) { this.fail('Enter your Google OAuth Client ID first'); return }
     try {
       this.status = 'syncing'
-      await getToken(this.clientId.trim(), CAL_SCOPE, true)
+      await getToken(this.clientId.trim(), ALL_SCOPES, true)
       store.setPref('gConnected', true)
       await this.sync()
     } catch (e) {
@@ -78,6 +77,7 @@ class GCal {
     })
     if (r.status !== 200) throw new Error('Cannot create calendar (' + r.status + ')')
     store.setPref('gCalId', r.data.id)
+    store.setPref('gCalIdT', Date.now())
     store.setPref('gEvents', {})
     return r.data.id
   }
@@ -102,13 +102,14 @@ class GCal {
     const clientId = this.clientId.trim()
     let token: string
     try {
-      token = await getToken(clientId, CAL_SCOPE, false)
+      token = await getToken(clientId, ALL_SCOPES, false)
     } catch {
       this.fail('Sign-in needed: open Settings and press Connect')
       return
     }
     try {
       this.status = 'syncing'
+      await cloud.ready() // adopt the calendar id shared by other devices first
       const calId = await this.ensureCalendar(token)
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
       const stored = { ...(store.pref('gEvents', {}) as Record<string, string>) }
