@@ -40,6 +40,14 @@ class GCal {
     }
   }
 
+  /** Forget the saved calendar and make sure one exists again (reuses an existing "To-Do Reminders", else creates it). */
+  async resetCalendar() {
+    store.setPref('gCalId', undefined)
+    store.setPref('gCalIdT', 0)
+    store.setPref('gEvents', {})
+    await this.sync()
+  }
+
   disconnect() {
     revokeToken()
     store.setPref('gConnected', false)

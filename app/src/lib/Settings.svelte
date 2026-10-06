@@ -131,6 +131,8 @@
         {#if gcal.connected}
           <button class="chip primary" onclick={() => gcal.connect()}>Reconnect</button>
           <button class="chip" onclick={async () => { if (await cloud.ensureAuth(true)) void gcal.sync() }}>Sync now</button>
+          <button class="chip" title="Use this if the calendar was deleted in Google Calendar"
+            onclick={async () => { if (await cloud.ensureAuth(true)) void gcal.resetCalendar() }}>Recreate calendar</button>
           <button class="chip danger" onclick={() => gcal.disconnect()}>Disconnect</button>
         {:else}
           <button class="chip primary" onclick={() => gcal.connect()}>Connect Google Calendar</button>
