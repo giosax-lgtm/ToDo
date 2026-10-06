@@ -42,6 +42,7 @@ class GCal {
 
   /** Forget the saved calendar and make sure one exists again (reuses an existing "To-Do Reminders", else creates it). */
   async resetCalendar() {
+    await this.running
     store.setPref('gCalId', undefined)
     store.setPref('gCalIdT', 0)
     store.setPref('gEvents', {})
@@ -124,8 +125,21 @@ class GCal {
     }
   }
 
-  /** Push the current reminders to Google Calendar (create / update / delete). */
-  async sync(retry = true) {
+  private running: Promise<void> | null = null
+  private again = false
+
+  /**
+   * Push the current reminders to Google Calendar (create / update / delete).
+   * Never runs twice at once: two parallel runs both saw "no calendar yet" and each created one.
+   */
+  async sync(): Promise<void> {
+    if (this.running) { this.again = true; return this.running }
+    this.running = this.doSync(true).finally(() => { this.running = null })
+    await this.running
+    if (this.again) { this.again = false; await this.sync() }
+  }
+
+  private async doSync(retry: boolean): Promise<void> {
     if (!this.connected) return
     const clientId = this.clientId.trim()
     let token: string
@@ -158,7 +172,7 @@ class GCal {
         if (r.status === 404 && retry) { // the calendar was deleted in Google Calendar: forget it and start over
           store.setPref('gCalId', undefined)
           store.setPref('gEvents', {})
-          return this.sync(false)
+          return this.doSync(false)
         }
         if (r.status >= 300) throw new Error('Calendar error ' + r.status)
         stored[id] = d.sig
