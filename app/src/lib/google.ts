@@ -1,4 +1,5 @@
-// Minimal Google OAuth (Google Identity Services token flow). The access token lives in memory only.
+// Minimal Google OAuth (Google Identity Services token flow). The access token (narrow scopes, 1 hour) is kept in
+// localStorage only until it expires, so a page refresh does not force a new sign-in.
 
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
 
@@ -42,7 +43,19 @@ export function loadGis(): Promise<void> {
   return loading
 }
 
-let token: { value: string; exp: number } | null = null
+const TOKEN_KEY = 'todo.gtoken'
+let token: { value: string; exp: number } | null = readToken()
+
+function readToken() {
+  try {
+    const t = JSON.parse(localStorage.getItem(TOKEN_KEY) ?? 'null')
+    return t && typeof t.value === 'string' && t.exp > Date.now() ? (t as { value: string; exp: number }) : null
+  } catch { return null }
+}
+function saveToken(t: { value: string; exp: number } | null) {
+  token = t
+  try { t ? localStorage.setItem(TOKEN_KEY, JSON.stringify(t)) : localStorage.removeItem(TOKEN_KEY) } catch { /* private mode */ }
+}
 
 export const hasValidToken = () => !!token && token.exp > Date.now() + 30000
 
@@ -61,7 +74,7 @@ export async function getToken(clientId: string, scope: string, interactive: boo
       scope,
       callback: (r) => {
         if (r.access_token) {
-          token = { value: r.access_token, exp: Date.now() + (r.expires_in ?? 3600) * 1000 }
+          saveToken({ value: r.access_token, exp: Date.now() + (r.expires_in ?? 3600) * 1000 })
           resolve(r.access_token)
         } else reject(new Error(r.error_description || r.error || 'Google sign-in failed'))
       },
@@ -73,9 +86,9 @@ export async function getToken(clientId: string, scope: string, interactive: boo
 
 export function revokeToken() {
   if (token && window.google) window.google.accounts.oauth2.revoke(token.value)
-  token = null
+  saveToken(null)
 }
 
 export function forgetToken() {
-  token = null
+  saveToken(null)
 }

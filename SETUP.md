@@ -178,7 +178,7 @@ I task si recuperano con il sync cifrato (C2, punto 4) o con un file di backup.
 Puoi usare `localhost` sul PC e il sito pubblicato sul telefono: sono archivi separati, ma con lo stesso Client ID e la stessa passphrase il sync cifrato li allinea.
 
 # Note di sicurezza
-- Il token Google resta solo in memoria e dura 1 ora; si rinnova da solo finché sei loggato su Google nel browser, altrimenti premi *Reconnect*.
+- Il token Google (scope minimi) dura 1 ora e resta nel browser solo fino alla scadenza, così un refresh non richiede un nuovo login. Quando scade, il primo clic o tocco nell'app lo rinnova con un breve popup di Google; in alternativa usa *Reconnect* in Settings.
 - Scope minimo: l'app gestisce **solo il calendario che ha creato** e una cartella Drive nascosta riservata all'app.
 - Disconnettendo l'app, gli eventi già creati restano su Calendar (eliminali cancellando il calendario "To-Do Reminders").
 - **Cifratura**: dati compressi e cifrati con AES-256-GCM sul dispositivo prima di andare su Drive; la chiave è protetta dalla passphrase (PBKDF2-SHA256, 600.000 iterazioni) e da una recovery key casuale. Google vede solo file illeggibili.

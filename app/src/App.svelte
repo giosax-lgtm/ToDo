@@ -75,10 +75,25 @@
       cloud.autoSync('tick')
     }
     document.addEventListener('visibilitychange', vis)
+    // Google only allows its sign-in popup after a user gesture: on the first tap once the token has expired,
+    // renew it right away (quick popup that closes by itself) instead of making the user dig into Settings.
+    let lastAuthTry = 0
+    const renew = () => {
+      if (!store.ready || !(cloud.enabled || gcal.connected) || hasValidToken()) return
+      if (Date.now() - lastAuthTry < 120000) return
+      lastAuthTry = Date.now()
+      void cloud.ensureAuth(true).then((ok) => {
+        if (!ok) return
+        void cloud.sync()
+        if (gcal.connected) void gcal.sync()
+      })
+    }
+    document.addEventListener('click', renew, true)
     return () => {
       clearInterval(tick)
       clearInterval(pull)
       document.removeEventListener('visibilitychange', vis)
+      document.removeEventListener('click', renew, true)
     }
   })
 </script>
