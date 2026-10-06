@@ -1,5 +1,12 @@
+// AZIONE SVELTE 'sortable': drag & drop (libreria SortableJS) per card, righe della tabella e colonne del board.
+// Principio: SortableJS sposta il DOM durante il trascinamento, ma al rilascio questo file RIPRISTINA il DOM com'era e chiama onMove:
+// e' lo store (lib/store.svelte.ts: moveTask / reorderGroup) a cambiare lo stato, e Svelte ridisegna. Cosi' Svelte resta l'unico proprietario del DOM.
+// Usata da Board.svelte (colonne), Column.svelte (card) e TableView.svelte (righe).
+
 import Sortable from 'sortablejs'
 
+// Opzioni dell'azione: selettore degli elementi trascinabili, nome del gruppo (contenitori con lo stesso nome si scambiano elementi), maniglia opzionale,
+// se il riordino interno e' abilitato, e la callback onMove chiamata dopo il rilascio.
 interface Opts {
   /** CSS selector of draggable items inside the container */
   item: string
@@ -12,6 +19,7 @@ interface Opts {
   onMove: (id: string, toContainer: HTMLElement, newIndex: number) => void
 }
 
+// L'azione: crea l'istanza Sortable sul nodo. Un contenitore con data-drop="0" rifiuta i rilasci. update()/destroy() seguono il ciclo di vita del componente.
 /** Svelte action: drag & drop that updates state only (Svelte owns the DOM). */
 export function sortable(node: HTMLElement, opts: Opts) {
   let current = opts
@@ -31,11 +39,13 @@ export function sortable(node: HTMLElement, opts: Opts) {
     filter: 'a',
     preventOnFilter: false,
     sort: opts.sort ?? true,
+    // Inizio drag: memorizza il nodo successivo esatto (commenti Svelte inclusi) per poter rimettere l'elemento nella posizione DOM originale.
     onStart(evt) {
       // exact next node (comments included): Svelte's each-block anchor is a comment, and restoring before the next
       // *element* would put the last item on the wrong side of that anchor and desync Svelte's idea of the order
       before = evt.item.nextSibling
     },
+    // Fine drag: annulla lo spostamento DOM fatto da Sortable (reinserendo l'elemento prima del nodo memorizzato) e notifica onMove(id, contenitore di arrivo, nuovo indice).
     onEnd(evt) {
       const { item, from, to, newIndex } = evt
       // Undo Sortable's DOM move: state drives the DOM. (Restore by neighbour node, not by index:
@@ -47,11 +57,13 @@ export function sortable(node: HTMLElement, opts: Opts) {
     },
   })
   return {
+    // Aggiorna le opzioni quando le props del componente cambiano (es. sort disattivato se la vista ha un ordinamento).
     update(o: Opts) {
       current = o
       s.option('sort', o.sort ?? true)
       s.option('draggable', o.item)
     },
+    // Smonta l'istanza Sortable quando il nodo viene rimosso.
     destroy() {
       s.destroy()
     },

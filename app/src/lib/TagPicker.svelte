@@ -1,3 +1,9 @@
+<!--
+  SELETTORE DEI TAG di un campo per un task: mostra le scelte come pill cliccabili (selezione multipla) e permette di crearne di nuove.
+  In modalita' modifica (matita) consente di rinominare/eliminare il campo e di rinominare, ricolorare o eliminare le singole scelte.
+  Usato da CardDetail.svelte (uno per campo) e da TableView.svelte (popover della cella, versione compact). Dati/azioni da lib/store.svelte.ts.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import { COLORS, COLOR_KEYS } from './colors'
@@ -6,18 +12,22 @@
 
   let { task, field, compact = false }: { task: Task; field: Field; compact?: boolean } = $props()
 
+  // Stato locale: modalita' modifica, scelta di cui si sta cambiando il colore e testo del nuovo tag.
   let editing = $state(false)
   let colorFor = $state<string | null>(null)
   let draftNew = $state('')
 
+  // Scelte del campo e scelte attualmente selezionate nel task.
   const options = $derived(store.fieldOptions(field.id))
   const selected = $derived(task.tags[field.id] ?? [])
 
+  // Seleziona/deseleziona una scelta per il task (click su una pill).
   function toggle(optId: string) {
     const next = selected.includes(optId) ? selected.filter((x) => x !== optId) : [...selected, optId]
     store.updateTask(task.id, { tags: { ...task.tags, [field.id]: next } })
   }
 
+  // Crea una nuova scelta nel campo e la seleziona subito per il task (Invio nel campo '+ new tag').
   async function create() {
     const label = draftNew.trim()
     if (!label) return

@@ -1,3 +1,5 @@
+// TypeScript 'a progetti': rimanda a tsconfig.app.json (codice in src/) e tsconfig.node.json (vite.config.ts). Usato da 'npm run check'.
+
 {
   "files": [],
   "references": [

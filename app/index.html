@@ -1,4 +1,10 @@
 <!doctype html>
+<!--
+  PAGINA HTML UNICA dell'app (single page application). Il browser carica questo file, che a sua volta carica src/main.ts (modulo) e quindi App.svelte.
+  Contiene: la Content-Security-Policy (consente solo risorse proprie e gli endpoint Google necessari a login, Drive e Calendar), il tema/colore della PWA,
+  le icone e il <div id="app"> in cui Svelte monta l'interfaccia. Il manifest e il service worker (PWA) sono generati da vite.config.ts.
+  Se aggiungi un nuovo servizio esterno, ricorda di autorizzarlo in connect-src/script-src della CSP.
+-->
 <html lang="it">
   <head>
     <meta charset="UTF-8" />

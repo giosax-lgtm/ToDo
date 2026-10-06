@@ -1,3 +1,8 @@
+// PALETTE COLORI. Unica fonte dei colori di colonne, tag e pill: bg (sfondo pill), fg (testo), col (sfondo colonna).
+// Le chiavi ('gray', 'purple'...) sono quelle salvate nei dati (Column.color, FieldOption.color).
+// Usato da Pill.svelte, Column.svelte, TagPicker.svelte, TableView.svelte e da store.svelte.ts (colore automatico dei nuovi tag).
+
+// Mappa chiave colore -> tinte. Se una chiave non esiste, i componenti ripiegano su COLORS.gray.
 // Slack-like pastel palette: bg for pills/columns, fg for text
 export const COLORS: Record<string, { bg: string; fg: string; col: string }> = {
   gray: { bg: '#e8e8e8', fg: '#3b3b3b', col: '#efefef' },
@@ -12,4 +17,5 @@ export const COLORS: Record<string, { bg: string; fg: string; col: string }> = {
   pink: { bg: '#f9d4e8', fg: '#9a1f66', col: '#f9dbeb' },
 }
 
+// Elenco ordinato delle chiavi: usato per le palette di selezione (Column, TagPicker) e per assegnare un colore ciclico ai nuovi tag (store.addOption).
 export const COLOR_KEYS = Object.keys(COLORS)

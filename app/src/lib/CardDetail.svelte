@@ -1,3 +1,9 @@
+<!--
+  PANNELLO DI DETTAGLIO di un task (si apre a destra sopra il board/tabella, ridimensionabile con resizer.ts). Modifica ogni proprieta' tramite store.updateTask():
+  titolo, stato, priorita' (stelle), scadenza, reminder (Reminders.svelte), descrizione, sottotask, tag (TagPicker.svelte), creazione di nuovi campi tag, eliminazione.
+  Montato da App.svelte quando store.openTask esiste (aperto da Card, TableView, Alerts o dopo la creazione di un task). Si chiude con Esc o click fuori.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import { resizer } from './resizer'
@@ -8,11 +14,14 @@
 
   let { task }: { task: Task } = $props()
 
+  // Testo digitato per un nuovo sottotask e per un nuovo campo tag.
   let newSub = $state('')
   let newField = $state('')
 
+  // Scorciatoia: applica una modifica parziale al task aperto (store.updateTask).
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p)
 
+  // Aggiunge un sottotask con il testo digitato (Invio nel campo).
   function addSub() {
     const text = newSub.trim()
     if (!text) return
@@ -20,10 +29,12 @@
     newSub = ''
   }
 
+  // Modifica un sottotask (spunta/rimuovi 'fatto') sostituendolo nell'elenco del task.
   function setSub(id: string, p: { done?: boolean }) {
     patch({ subtasks: task.subtasks.map((s) => (s.id === id ? { ...s, ...p } : s)) })
   }
 
+  // Chiude il pannello (store.openTaskId = null): Esc, click sullo sfondo o pulsante X.
   function close() { store.openTaskId = null }
 </script>
 

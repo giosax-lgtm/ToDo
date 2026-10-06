@@ -26,5 +26,9 @@ npm test         # test
 npm run serve    # build + anteprima su http://localhost:4173
 ```
 
+## Documentazione
+- [GUIDA_UTENTE.md](GUIDA_UTENTE.md): funzionalità e uso dell'app
+- [ARCHITETTURA.md](ARCHITETTURA.md): architettura e istruzioni per chi modifica il codice
+
 ## Installazione e deploy
 Vedi [SETUP.md](SETUP.md) (uso sul PC, pubblicazione online e installazione su Android).

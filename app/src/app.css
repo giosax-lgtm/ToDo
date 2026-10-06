@@ -1,3 +1,11 @@
+/*
+ * FOGLIO DI STILE GLOBALE dell'app (importato da src/main.ts). Contiene tutti gli stili: non ci sono CSS per-componente.
+ * Sezioni (in ordine): variabili e layout, sidebar, barra filtri/toolbar, board e card, pannello dettaglio, tabella, tag picker,
+ * reminder e alert, modale impostazioni, temi (light/dark/claude) e regole mobile.
+ * Le dimensioni usano 'rem' moltiplicati per --ts (dimensione testo) e il font-size di <html> (uiScale): sono impostati da App.svelte
+ * in base alle preferenze. I colori dei tag/colonne arrivano invece da lib/colors.ts come stili inline.
+ */
+
 :root {
   --aubergine: #3f0e40;
   --aubergine-2: #4a154b;

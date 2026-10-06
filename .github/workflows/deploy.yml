@@ -1,3 +1,6 @@
+# WORKFLOW GitHub Actions: a ogni push su 'main' costruisce l'app (npm ci + npm run build in app/) e pubblica app/dist su GitHub Pages.
+# E' il metodo di pubblicazione online descritto in SETUP.md (Parte B). Il job 'build' produce l'artefatto, il job 'deploy' lo mette online.
+
 name: Deploy to GitHub Pages
 
 on:

@@ -1,3 +1,5 @@
+// Opzioni TypeScript per il codice dell'app (src/**/*.ts e *.svelte): estende la base di @tsconfig/svelte. Usato da svelte-check ('npm run check').
+
 {
   "extends": "@tsconfig/svelte/tsconfig.json",
   "compilerOptions": {

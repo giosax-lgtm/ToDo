@@ -1,3 +1,12 @@
+<!--
+  FINESTRA IMPOSTAZIONI (modale, aperta con store.settingsOpen da Sidebar.svelte o Reminders.svelte). Sezioni:
+   - Aspetto (tema, dimensioni, font): scrive preferenze con store.setPref, applicate da App.svelte;
+   - Google Calendar (Client ID, connetti, sync, ricrea calendario, disconnetti): gcal.svelte.ts;
+   - Backup su file cifrato (export/import): backup.ts;
+   - Sync cifrata su Google Drive (crea vault, sblocca, frequenza, sync ora, blocca): cloud.svelte.ts.
+  Nessuna logica propria di business: orchestra solo i servizi sopra e mostra il loro stato.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import { gcal } from './gcal.svelte'
@@ -5,6 +14,7 @@
   import { exportBackup, importBackup } from './backup'
   import { onMount } from 'svelte'
 
+  // Font selezionabili: [valore CSS font-family, etichetta]. Il valore e' salvato nella preferenza 'font'.
   const FONTS: [string, string][] = [
     ['Lato, "Segoe UI", system-ui, sans-serif', 'Lato / Segoe UI (default)'],
     ['system-ui, sans-serif', 'System'],
@@ -15,14 +25,17 @@
     ['Consolas, "Courier New", monospace', 'Consolas (mono)'],
   ]
 
+  // Chiude la finestra, e formatta un orario locale per 'ultimo sync'.
   const close = () => (store.settingsOpen = false)
   const ago = (t: number | null) => (t ? new Date(t).toLocaleTimeString() : '—')
 
+  // Stato locale della sezione Backup: archiviazione persistente concessa (letta al montaggio), passphrase del backup e messaggio di esito.
   let persisted = $state<boolean | null>(null)
   let bpass = $state('')
   let bmsg = $state('')
   onMount(async () => { persisted = (await navigator.storage?.persisted?.()) ?? null })
 
+  // Esporta il backup cifrato (backup.exportBackup) e lo scarica come file .todo-backup.json; richiede una passphrase di almeno 8 caratteri.
   async function doExport() {
     if (bpass.length < 8) { bmsg = 'Choose a passphrase of at least 8 characters for the backup file'; return }
     const blob = await exportBackup(bpass)
@@ -34,6 +47,7 @@
     bmsg = 'Backup downloaded. Keep it somewhere safe, with its passphrase.'
   }
 
+  // Importa un backup scelto dall'utente (backup.importBackup) dopo conferma: SOSTITUISCE tutti i dati del dispositivo. Mostra l'esito.
   async function doImport(e: Event) {
     const input = e.currentTarget as HTMLInputElement
     const f = input.files?.[0]
@@ -49,13 +63,16 @@
     }
   }
 
+  // Stato locale della sezione sync: passphrase, ripetizione, modalita' 'chiave di recupero' e conferma di aver salvato la chiave.
   let pass = $state('')
   let pass2 = $state('')
   let recoveryMode = $state(false)
   let saved = $state(false)
 
+  // True se la passphrase e' troppo corta (meno di 12 caratteri).
   const weak = $derived(pass.length > 0 && pass.length < 12)
 
+  // Crea il vault cifrato (primo dispositivo) dopo aver validato lunghezza e coincidenza delle passphrase (cloud.create).
   async function create() {
     if (pass.length < 12) { cloud.message = 'Use at least 12 characters (a few random words work well)'; cloud.status = 'error'; return }
     if (pass !== pass2) { cloud.message = 'The two passphrases differ'; cloud.status = 'error'; return }
@@ -63,11 +80,13 @@
     pass = pass2 = ''
   }
 
+  // Sblocca un vault esistente (altro dispositivo) con passphrase o chiave di recupero (cloud.join).
   async function join() {
     await cloud.join(pass, recoveryMode ? 'recovery' : 'passphrase')
     pass = ''
   }
 
+  // Ripristina le preferenze di aspetto ai valori predefiniti.
   function resetLook() {
     for (const k of ['uiScale', 'textScale', 'font', 'colW', 'theme']) store.setPref(k, undefined)
   }

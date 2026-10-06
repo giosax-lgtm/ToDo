@@ -1,3 +1,9 @@
+<!--
+  COLONNA del board per UN gruppo (Group): intestazione (nome, contatore, menu rinomina/colore/elimina), elenco di card (Card.svelte) e aggiunta rapida di task.
+  Le card sono trascinabili tra colonne con sortable.ts: al rilascio onMove chiama store.moveTask. I task mostrati arrivano da store.groupTasks(group).
+  Usata da Board.svelte (una per gruppo). I colori vengono da lib/colors.ts.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import { COLORS, COLOR_KEYS } from './colors'
@@ -7,15 +13,18 @@
 
   let { group }: { group: Group } = $props()
 
+  // Stato locale: campo di aggiunta aperto, titolo digitato, menu '...' aperto, nome in modifica.
   let adding = $state(false)
   let newTitle = $state('')
   let menu = $state(false)
   let editing = $state(false)
 
+  // Task visibili del gruppo, colore della colonna e se si possono aggiungere/rilasciare card (group.apply non nullo).
   const tasks = $derived(store.groupTasks(group))
   const c = $derived(COLORS[group.color] ?? COLORS.gray)
   const canAdd = $derived(group.apply !== null)
 
+  // Crea il task nel gruppo (store.addTask). Invio: lo crea e apre il dettaglio per completarlo; Ctrl+Invio: lo crea e resta nel campo per aggiungerne altri.
   /** Enter: create and open the item so tags, priority, etc. can be set. Ctrl+Enter: quick add. */
   async function add(open: boolean) {
     const t = newTitle.trim()
@@ -28,8 +37,10 @@
     }
   }
 
+  // Azione Svelte: mette il focus sull'elemento appena mostrato.
   function focusEl(n: HTMLElement) { n.focus() }
 
+  // Callback di sortable.ts al rilascio di una card: la sposta nel gruppo di arrivo e nella posizione indicata (store.moveTask).
   function onMove(id: string, to: HTMLElement, idx: number) {
     store.moveTask(id, to.dataset.col!, idx)
   }

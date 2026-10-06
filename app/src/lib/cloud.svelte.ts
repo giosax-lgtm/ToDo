@@ -1,3 +1,10 @@
+// SINCRONIZZAZIONE CIFRATA TRA DISPOSITIVI su Google Drive (cartella nascosta dell'app). Esporta il singleton 'cloud' (stato reattivo + azioni).
+// Come funziona: ogni dispositivo scrive il proprio file cifrato 'dev-<id>.enc' (tutti i suoi record) e legge quelli degli altri; i conflitti si risolvono
+// per singolo record con lib/merge.ts. La chiave dati (DEK) e' protetta da passphrase + chiave di recupero (lib/crypto.ts, keyfile.json).
+// Dipende da: lib/drive.ts (file su Drive), lib/google.ts (token), lib/crypto.ts, lib/merge.ts, lib/store.svelte.ts (dati) e lib/db.ts (chiavi locali 'x:dek'/'x:base').
+// Chiamato da: App.svelte (avvio, timer, eventi), Settings.svelte (crea/sblocca/sync manuale), Sidebar.svelte (indicatore di stato) e gcal.svelte.ts
+// (il calendario deve usare lo stesso id su tutti i dispositivi: 'extras.gCalId').
+
 import { db } from './db'
 import { store } from './store.svelte'
 import { ALL_SCOPES, forgetToken, getToken, hasValidToken, loadGis } from './google'
@@ -5,8 +12,10 @@ import { listFiles, download, upload, type DriveFile } from './drive'
 import { createVault, decryptJson, encryptJson, openVault, type KeyFile } from './crypto'
 import { detectLocal, hashAll, mergeRemote, purgeTombstones, type BaseEnt, type FileState } from './merge'
 
+// Nome del file su Drive che contiene la DEK incartata (passphrase + recupero).
 const KEYFILE = 'keyfile.json'
 
+// Opzioni di frequenza mostrate in Settings: [chiave, etichetta, minuti]. 0 = subito dopo ogni modifica, null = solo manuale. La scelta e' in store.pref('syncFreq').
 /** Automatic sync frequency options (minutes; 0 = instant, null = manual only). */
 export const SYNC_FREQ: [string, string, number | null][] = [
   ['instant', 'Automatic: a few seconds after each change (and every minute)', 0],
@@ -17,7 +26,9 @@ export const SYNC_FREQ: [string, string, number | null][] = [
   ['manual', 'Manual only (Sync now button)', null],
 ]
 
+// Servizio di sync. Lo stato reattivo ($state) e' letto da Sidebar.svelte e Settings.svelte per mostrare lo stato della sincronizzazione.
 class Cloud {
+  // Stato osservabile: stato corrente, messaggio d'errore, ultimo sync riuscito, 'serve nuovo login Google' e chiave di recupero da mostrare una sola volta.
   status = $state<'off' | 'locked' | 'syncing' | 'ok' | 'error'>('off')
   message = $state('')
   lastSync = $state<number | null>(null)
@@ -26,14 +37,19 @@ class Cloud {
   /** Shown once after creating a vault. */
   recoveryKey = $state<string | null>(null)
 
+  // Stato interno: DEK in memoria, flag per evitare sync concorrenti ('running'), richiesta di rilancio ('again') e promessa dell'ultima sync ('last').
   private dek: CryptoKey | null = null
   private running = false
   private again = false
   private last: Promise<void> = Promise.resolve()
 
+  // True se la sync cifrata e' attiva su questo dispositivo (preferenza 'cloudOn').
   get enabled() { return store.pref('cloudOn', false) }
+  // Frequenza di sync scelta dall'utente (preferenza 'syncFreq', default 'instant').
   get freq() { return store.pref('syncFreq', 'instant') }
 
+  // Punto d'ingresso dei trigger automatici: App.svelte lo chiama dopo una modifica ('change'), a timer ('tick') e all'avvio ('start').
+  // Decide se sincronizzare in base alla frequenza scelta (SYNC_FREQ) e a quando e' avvenuto l'ultimo sync.
   /**
    * Called by timers/events. 'change' = local edit, 'tick' = periodic check, 'start' = app opened.
    * Interval modes sync when the last successful sync is older than the interval (checked on start and every minute while the app is open).
@@ -47,14 +63,17 @@ class Cloud {
     const last = store.pref('cloudLast', 0)
     if (Date.now() - last >= mins * 60000) void this.sync()
   }
+  // Client ID OAuth inserito dall'utente in Settings (preferenza 'gClientId').
   private get clientId() { return store.pref('gClientId', '').trim() }
 
+  // Id breve e stabile di questo dispositivo (generato la prima volta e salvato): nomina il file dev-<id>.enc e fa da 'autore' nelle versioni dei record.
   private device(): string {
     let d = store.pref('syncDevice', '')
     if (!d) { d = crypto.randomUUID().slice(0, 8); store.setPref('syncDevice', d) }
     return d
   }
 
+  // Chiamata da App.svelte all'avvio: se la sync e' attiva, ricarica ultimo sync e DEK salvata (db settings 'x:dek'); stato 'ok' se la chiave c'e', altrimenti 'locked'.
   async init() {
     if (!this.enabled) { this.status = 'off'; return }
     this.lastSync = store.pref('cloudLast', 0) || null
@@ -62,6 +81,8 @@ class Cloud {
     this.status = this.dek ? 'ok' : 'locked'
   }
 
+  // Si assicura di avere un token Google valido. Con interactive=false si limita a segnalare 'authNeeded'; con true apre il popup (deve partire da un click).
+  // Chiamata da App.svelte (rinnovo al click) e dai pulsanti 'Sync now'/'Recreate calendar' di Settings.svelte.
   /**
    * Make sure a Google token is available. Silent attempt first (works while the browser is signed in to Google);
    * if that fails, call again with interactive=true from a user click (a quick popup, usually closes by itself).
@@ -82,25 +103,30 @@ class Cloud {
     }
   }
 
+  // Promessa che si risolve a fine sync: gcal.svelte.ts la attende per usare l'id del calendario condiviso dagli altri dispositivi.
   /** Resolves when the running/last sync has finished (used so Calendar waits for the shared calendar id). */
   ready(): Promise<void> { return this.enabled ? this.last : Promise.resolve() }
 
+  // Registra un errore: stato 'error' e messaggio (mostrato in Settings e Sidebar).
   private fail(e: unknown) {
     this.status = 'error'
     this.message = (e as Error).message || String(e)
   }
 
+  // Ottiene il token Google (senza popup se interactive=false) per i permessi ALL_SCOPES; errore se manca il Client ID.
   private async token(interactive: boolean) {
     if (!this.clientId) throw new Error('Enter your Google OAuth Client ID first')
     return getToken(this.clientId, ALL_SCOPES, interactive)
   }
 
+  // Tiene la DEK in memoria e la salva (non estraibile) in IndexedDB; attiva la preferenza 'cloudOn'.
   private async saveDek(key: CryptoKey) {
     this.dek = key
     await db.settings.put({ key: 'x:dek', value: key }) // non-extractable key stored locally
     store.setPref('cloudOn', true)
   }
 
+  // PRIMO DISPOSITIVO: controlla che non esista gia' un vault, crea il vault (crypto.createVault), carica keyfile.json su Drive, salva la DEK, espone la chiave di recupero e fa la prima sync. Chiamata da Settings.create().
   /** First device: create the encryption vault. Returns the recovery key (show it once!). */
   async create(passphrase: string): Promise<void> {
     try {
@@ -119,6 +145,7 @@ class Cloud {
     }
   }
 
+  // ALTRO DISPOSITIVO: scarica keyfile.json, apre il vault con passphrase o chiave di recupero e sincronizza. Se il dispositivo e' vuoto e nel cloud ci sono dati, scarta la lista di esempio per prendere quelli del cloud. Chiamata da Settings.join().
   /** Another device: unlock the existing vault with passphrase (or recovery key). */
   async join(secret: string, mode: 'passphrase' | 'recovery'): Promise<void> {
     try {
@@ -141,6 +168,7 @@ class Cloud {
     }
   }
 
+  // Dimentica la chiave su questo dispositivo e disattiva la sync (i dati nel cloud restano). Chiamata da Settings.svelte.
   /** Forget the key on this device (cloud data stays). */
   async lock() {
     this.dek = null
@@ -150,6 +178,7 @@ class Cloud {
     this.message = ''
   }
 
+  // Avvia una sincronizzazione senza mai farne due in parallelo: se una e' in corso ne programma un'altra subito dopo ('again').
   async sync(): Promise<void> {
     if (!this.enabled || !this.dek) return
     if (this.running) { this.again = true; return }
@@ -160,6 +189,8 @@ class Cloud {
     if (this.again) { this.again = false; void this.sync() }
   }
 
+  // Il ciclo di sync completo: (1) rileva modifiche locali, (2) scarica e decifra i file degli altri dispositivi e li fonde (merge.ts), applicando le modifiche allo store,
+  // gestisce l'id condiviso del calendario Google, (3) ricarica il proprio file se qualcosa e' cambiato, poi salva la 'base' e l'orario dell'ultima sync.
   private async run() {
     const dek = this.dek!
     try {
@@ -229,4 +260,5 @@ class Cloud {
   }
 }
 
+// Istanza unica del servizio, importata da App.svelte, Settings.svelte, Sidebar.svelte e gcal.svelte.ts.
 export const cloud = new Cloud()

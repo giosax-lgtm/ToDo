@@ -1,3 +1,9 @@
+<!--
+  CARD di un task nel board: titolo con checkbox di completamento, meta (priorita', sottotask, prossimo reminder, scadenza), descrizione e tag.
+  Cosa si vede dipende dai campi nascosti della vista corrente (store.draft.hidden, scelti nella Toolbar). Click = apre CardDetail.svelte (store.openTaskId).
+  Usata da Column.svelte (una per task). Usa Pill.svelte per i tag e Linkify.svelte per i link cliccabili; data-id serve a sortable.ts per il drag & drop.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import Pill from './Pill.svelte'
@@ -6,6 +12,7 @@
 
   let { task }: { task: Task } = $props()
 
+  // Valori derivati per il disegno: campi nascosti, sottotask completati, scadenza superata, prossimo reminder non scattato e tag raggruppati per campo.
   const hidden = $derived(store.draft.hidden)
   const subDone = $derived(task.subtasks.filter((s) => s.done).length)
   const overdue = $derived(!!task.due && !task.done && task.due < new Date().toISOString().slice(0, 10))

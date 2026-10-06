@@ -1,3 +1,9 @@
+<!--
+  BANNER DEI REMINDER SCATTATI. Mostra la lista store.alerts (riempita da store.fireAlert quando un reminder scade, vedi store.checkReminders).
+  Azioni per ogni avviso: Open (apre il task in CardDetail), posticipa di 10 min / 1 h / domani (store.snooze), chiudi (store.dismissAlert).
+  Montato da App.svelte; gli stili (.alerts, .alert) sono in app.css.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
 </script>

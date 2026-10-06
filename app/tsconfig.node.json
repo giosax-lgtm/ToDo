@@ -1,3 +1,5 @@
+// Opzioni TypeScript per i file di tooling eseguiti da Node (solo vite.config.ts). Usato da 'npm run check'.
+
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",

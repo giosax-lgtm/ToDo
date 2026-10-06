@@ -1,3 +1,9 @@
+<!--
+  VISTA TABELLA: un blocco per gruppo (store.groups) con righe-task modificabili in linea (stato, priorita', scadenza, tag) e intestazioni cliccabili per ordinare.
+  Le righe sono trascinabili tra gruppi con sortable.ts -> store.moveTask. Le colonne mostrate dipendono dai campi nascosti della vista (store.draft.hidden).
+  Montata da App.svelte quando la vista ha layout 'table' (alternativa: Board.svelte). Usa TagPicker.svelte per i tag e Pill.svelte per le etichette.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import { COLORS } from './colors'
@@ -6,19 +12,23 @@
   import TagPicker from './TagPicker.svelte'
   import type { Group, Task } from './types'
 
+  // Stato locale: cella dei tag con popover aperto, gruppo in cui si sta aggiungendo un task e relativo titolo.
   let openCell = $state<string | null>(null)
   let addingIn = $state<string | null>(null)
   let newTitle = $state('')
 
   const hidden = $derived(store.draft.hidden)
+  // Colonne dinamiche (stato, priorita', scadenza e un campo per ogni campo tag) escludendo quelle nascoste dalla vista.
   const cols = $derived([
     ...(hidden.includes('status') ? [] : [{ key: 'status', label: 'Status' }]),
     ...(hidden.includes('priority') ? [] : [{ key: 'priority', label: 'Priority' }]),
     ...(hidden.includes('due') ? [] : [{ key: 'due', label: 'Due date' }]),
     ...store.fields.filter((f) => !hidden.includes(f.id)).map((f) => ({ key: f.id, label: f.name })),
   ])
+  // Valore CSS grid-template-columns per intestazione e righe, calcolato dal numero di colonne.
   const template = $derived(`32px minmax(240px, 3fr) repeat(${cols.length}, minmax(120px, 1fr))`)
 
+  // Click su un'intestazione: cicla ordinamento crescente -> decrescente -> nessuno (store.updateDraft).
   function sortBy(key: string) {
     const s = store.draft.sort
     if (!s || s.key !== key) store.updateDraft({ sort: { key, dir: 'asc' } })
@@ -26,6 +36,7 @@
     else store.updateDraft({ sort: null })
   }
 
+  // Crea un task nel gruppo (store.addTask) e ne apre il dettaglio.
   async function add(g: Group) {
     const t = newTitle.trim()
     if (!t) return
@@ -35,8 +46,11 @@
     store.openTaskId = task.id
   }
 
+  // Azione Svelte: mette il focus sull'elemento appena mostrato.
   function focusEl(n: HTMLElement) { n.focus() }
+  // Callback di sortable.ts al rilascio di una riga: store.moveTask nel gruppo/posizione di arrivo.
   function onMove(id: string, to: HTMLElement, idx: number) { store.moveTask(id, to.dataset.col!, idx) }
+  // Chiave di ordinamento di una colonna (coincide con la chiave della colonna: stato, priorita', scadenza o id del campo).
   const sortKey = (k: string) => (k === 'status' || k === 'priority' || k === 'due' ? k : k)
 </script>
 
@@ -72,6 +86,7 @@
   {/each}
 </div>
 
+<!-- Snippet: disegna una riga-task (checkbox, nome, e una cella editabile per ogni colonna visibile). -->
 {#snippet row(t: Task)}
   <div class="trow" class:done={t.done} data-id={t.id} style:grid-template-columns={template}>
     <button class="check" class:on={t.done} aria-label="Complete" onclick={() => store.updateTask(t.id, { done: !t.done })}>{t.done ? '✓' : ''}</button>

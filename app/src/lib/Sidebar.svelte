@@ -1,3 +1,9 @@
+<!--
+  BARRA LATERALE: elenco delle liste (progetti) con creazione, rinomina, eliminazione; indicatore dello stato di sincronizzazione Google e pulsante Impostazioni.
+  Su mobile si apre/chiude con il pulsante menu di App.svelte (prop 'open'). Ridimensionabile con resizer.ts. Dati da store.svelte.ts;
+  lo stato di sync viene da cloud.svelte.ts e gcal.svelte.ts. Click sull'indicatore o su Settings apre Settings.svelte (store.settingsOpen).
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import { resizer } from './resizer'
@@ -5,8 +11,10 @@
   import { gcal } from './gcal.svelte'
 
   let { open = $bindable(false) }: { open?: boolean } = $props()
+  // Formatta un istante come ora:minuti locali (per 'Synced 14:32').
   const hhmm = (t: number | null) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')
 
+  // Calcola cosa mostrare nell'indicatore: grigio = sync spenta, verde = funziona, giallo = serve attenzione (login scaduto, errore, vault bloccato). Combina lo stato di cloud e gcal.
   /** green = working, yellow = needs attention (open Settings to reconnect), gray = not used */
   const sync = $derived.by(() => {
     if (!cloud.enabled && !gcal.connected) return { level: 'off', text: 'Sync off', tip: 'Google sync is not set up (Settings)' }
@@ -18,9 +26,11 @@
     return { level: 'ok', text: t ? 'Synced ' + hhmm(t) : 'Sync on', tip: 'Everything is synced. Click to open Settings.' }
   })
 
+  // Stato locale del campo per una nuova lista.
   let adding = $state(false)
   let name = $state('')
 
+  // Crea la lista con il nome digitato (store.addProject) e la seleziona.
   async function add() {
     const n = name.trim()
     if (n) {
@@ -30,6 +40,7 @@
     name = ''
     adding = false
   }
+  // Azione Svelte: mette il focus sull'elemento appena mostrato.
   function focusEl(n: HTMLElement) { n.focus() }
 </script>
 

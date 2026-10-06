@@ -1,9 +1,17 @@
+// TIPI DEL MODELLO DATI condivisi da tutta l'app (solo interfacce TypeScript, nessun codice eseguibile).
+// Le entita' persistite in IndexedDB (Project, Column, Task, Field, FieldOption, View, Setting) sono dichiarate nello schema di lib/db.ts
+// e gestite da lib/store.svelte.ts; le stesse entita' (esclusa Setting) vengono sincronizzate/cifrate da lib/cloud.svelte.ts e lib/backup.ts.
+// I tipi Group e ViewFilter/ViewSort descrivono invece la logica di visualizzazione (raggruppamento, filtri, ordinamento) usata da
+// Toolbar, Board, Column e TableView.
+
+// Una LISTA (progetto/board) mostrata nella Sidebar. Ogni lista ha le proprie colonne di stato, i propri task e le proprie viste.
 export interface Project {
   id: string
   name: string
   order: number
 }
 
+// Una COLONNA DI STATO di una lista (es. 'Not started', 'In progress'). Il task punta alla colonna con Task.columnId. 'color' e' una chiave di lib/colors.ts.
 export interface Column {
   id: string
   projectId: string
@@ -12,6 +20,7 @@ export interface Column {
   order: number
 }
 
+// Un CAMPO TAG personalizzato (es. 'Project', 'Scope'). E' condiviso da tutte le liste; le sue scelte sono le FieldOption.
 /** A tag field such as "Project" or "Scope". Shared by all lists. */
 export interface Field {
   id: string
@@ -19,6 +28,7 @@ export interface Field {
   order: number
 }
 
+// Un singolo TAG selezionabile di un Field (etichetta + colore). Il task lo referenzia in Task.tags[fieldId].
 export interface FieldOption {
   id: string
   fieldId: string
@@ -27,14 +37,17 @@ export interface FieldOption {
   order: number
 }
 
+// Un sotto-task (checklist) contenuto dentro un Task; modificato da CardDetail.svelte.
 export interface Subtask {
   id: string
   text: string
   done: boolean
 }
 
+// Frequenza di ripetizione di un reminder. Calcolo della prossima occorrenza: nextOccurrence() in store.svelte.ts; mappatura su Google Calendar: RRULE in gcal.svelte.ts.
 export type Repeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 
+// Un PROMEMORIA di un task: data/ora locale, ripetizione e flag 'fired' (gia' mostrato). Gestito da Reminders.svelte, attivato da store.checkReminders(), inviato a Calendar da gcal.svelte.ts.
 export interface Reminder {
   id: string
   at: string // local date-time 'yyyy-MM-ddTHH:mm'
@@ -42,6 +55,8 @@ export interface Reminder {
   fired: boolean // one-time reminders: already shown
 }
 
+// Un ELEMENTO/TASK: l'entita' principale. Appartiene a una lista (projectId) e a una colonna (columnId); 'order' e' l'ordine manuale tra le card;
+// 'tags' mappa fieldId -> id delle opzioni scelte. Mostrato da Card.svelte / TableView.svelte e modificato da CardDetail.svelte.
 export interface Task {
   id: string
   projectId: string
@@ -59,8 +74,12 @@ export interface Task {
   updatedAt: number
 }
 
+// Modo di visualizzazione di una vista: 'board' (colonne kanban, Board.svelte) o 'table' (TableView.svelte).
 export type Layout = 'board' | 'table'
 
+// Una VISTA salvata di una lista: layout, raggruppamento, filtri, ordinamento, campi nascosti. 'store.draft' e' la copia di lavoro modificabile;
+// 'search' e' transitorio e non viene mai salvato nella vista.
+// Un filtro di una vista (chiave attributo + 'includes'/'excludes' + valori). Creato dalla Toolbar, valutato da store.matches().
 /** key: 'status' | 'priority' | 'due' | 'completed' | <fieldId> */
 export interface ViewFilter {
   key: string
@@ -68,6 +87,7 @@ export interface ViewFilter {
   values: string[]
 }
 
+// Ordinamento di una vista (chiave + direzione). Se assente vale l'ordine manuale (Task.order). Applicato da store.compare().
 export interface ViewSort {
   key: string // 'name' | 'status' | 'priority' | 'due' | 'created' | <fieldId>
   dir: 'asc' | 'desc'
@@ -87,6 +107,8 @@ export interface View {
   order: number
 }
 
+// Un GRUPPO di visualizzazione (colonna del board o gruppo della tabella) nel raggruppamento corrente. Costruito da store.computeGroups();
+// 'apply' dice cosa cambia in un task quando viene trascinato in quel gruppo (null = non e' possibile rilasciarvi card).
 /** A swim-lane / board column in the current grouping. */
 export interface Group {
   key: string
@@ -97,6 +119,7 @@ export interface Group {
   apply: ((t: Task) => Partial<Task>) | null // what changes when a card is dropped here; null = not droppable
 }
 
+// Riga della tabella 'settings' (chiave/valore) di IndexedDB: preferenze, vista corrente, larghezze pannelli, stato di sync. Accesso tramite store.pref()/setPref().
 export interface Setting {
   key: string
   value: unknown

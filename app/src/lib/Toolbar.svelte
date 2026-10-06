@@ -1,19 +1,29 @@
+<!--
+  BARRA DEGLI STRUMENTI sopra board/tabella: menu Views (cambia/rinomina/elimina/predefinita), ricerca, 'Edit view' (filtri, ordinamento, campi nascosti, raggruppamento, layout, mostra completati),
+  filtri attivi e pulsanti Reset / Save view / Save as new quando la vista e' stata modificata.
+  Modifica la BOZZA della vista (store.updateDraft e derivate) senza toccare la vista salvata finche' non si preme Save. Montata da App.svelte; logica in lib/store.svelte.ts.
+-->
+
 <script lang="ts">
   import { store } from './store.svelte'
   import Pill from './Pill.svelte'
 
+  // Stato locale: quale menu a comparsa e' aperto, quale sottosezione di 'Edit view' e quale menu opzioni di una vista.
   type Menu = 'views' | 'edit' | 'group' | `filter:${string}` | 'addfilter' | null
   let menu = $state<Menu>(null)
   let sub = $state<'filter' | 'sort' | 'hide' | 'group' | null>(null)
   let viewMenu = $state<string | null>(null)
 
+  // Scorciatoia alla bozza della vista e apertura/chiusura di un menu (riaprire lo stesso lo chiude).
   const d = $derived(store.draft)
   const toggleMenu = (m: Menu) => { menu = menu === m ? null : m; sub = null; viewMenu = null }
 
+  // Attributi disponibili per filtri/raggruppamento/ordinamento e le relative etichette (da store.attributeKeys e store.filterLabel).
   const attrs = $derived(store.attributeKeys)
   const sortKeys = $derived(['name', ...attrs.filter((k) => k !== 'completed'), 'created'])
   const sortLabel = (k: string) => (k === 'name' ? 'Name' : k === 'created' ? 'Created' : store.filterLabel(k))
   const groupLabel = $derived(d.groupBy === 'none' ? 'None' : store.filterLabel(d.groupBy))
+  // Elenco dei campi che si possono nascondere nella vista (campi fissi + campi tag).
   const hideable = $derived([
     { key: 'status', label: 'Status' },
     { key: 'priority', label: 'Priority' },
@@ -24,16 +34,19 @@
     ...store.fields.map((f) => ({ key: f.id, label: f.name })),
   ])
 
+  // Nasconde/mostra un campo nella bozza (checkbox di 'Hide fields').
   function toggleHidden(key: string) {
     store.updateDraft({ hidden: d.hidden.includes(key) ? d.hidden.filter((x) => x !== key) : [...d.hidden, key] })
   }
 
+  // Aggiunge/toglie un valore da un filtro attivo (checkbox del menu filtro).
   function toggleValue(key: string, value: string) {
     const f = d.filters.find((x) => x.key === key)
     if (!f) return
     store.setFilter(key, { values: f.values.includes(value) ? f.values.filter((v) => v !== value) : [...f.values, value] })
   }
 
+  // Chiede un nome e crea una nuova vista dalle impostazioni correnti (store.createView).
   function newView() {
     const n = prompt('Name of the new view', 'New view')
     if (n) store.createView(n)
