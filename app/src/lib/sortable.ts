@@ -15,6 +15,7 @@ interface Opts {
 /** Svelte action: drag & drop that updates state only (Svelte owns the DOM). */
 export function sortable(node: HTMLElement, opts: Opts) {
   let current = opts
+  let before: Element | null = null
   const s = Sortable.create(node, {
     group: {
       name: opts.group,
@@ -30,11 +31,15 @@ export function sortable(node: HTMLElement, opts: Opts) {
     filter: 'a',
     preventOnFilter: false,
     sort: opts.sort ?? true,
+    onStart(evt) {
+      before = evt.item.nextElementSibling
+    },
     onEnd(evt) {
-      const { item, from, to, oldIndex, newIndex } = evt
-      // Undo Sortable's DOM move: state drives the DOM.
+      const { item, from, to, newIndex } = evt
+      // Undo Sortable's DOM move: state drives the DOM. (Restore by neighbour, not by index:
+      // indexes only count draggable items, so they drift when other children are present.)
       to.removeChild(item)
-      from.insertBefore(item, from.children[oldIndex ?? 0] ?? null)
+      from.insertBefore(item, before)
       const id = item.dataset.id
       if (id && newIndex !== undefined) current.onMove(id, to as HTMLElement, newIndex)
     },

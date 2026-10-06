@@ -129,7 +129,7 @@ class AppStore {
       db.views.toArray(),
     ])
     this.projects = projects.sort((a, b) => a.order - b.order)
-    this.columns = columns
+    this.columns = columns.map((c, i) => ({ ...c, order: c.order ?? i }))
     this.tasks = tasks.map((t) => ({ ...t, reminders: t.reminders ?? [] }))
     this.fields = fields.sort((a, b) => a.order - b.order)
     this.options = options.map((o, i) => ({ ...o, order: o.order ?? i }))
@@ -501,15 +501,21 @@ class AppStore {
 
   async reorderGroup(key: string, newIndex: number) {
     const gb = this.draft.groupBy
-    const list: { id: string; order: number }[] =
-      gb === 'status' ? this.projectColumns : this.fieldOptions(gb)
-    const i = list.findIndex((x) => x.id === key)
-    if (i < 0) return
-    const [m] = list.splice(i, 1)
-    list.splice(newIndex, 0, m)
-    list.forEach((x, n) => (x.order = n))
-    if (gb === 'status') await db.columns.bulkPut(plain(list as Column[]))
-    else await db.options.bulkPut(plain(list as FieldOption[]))
+    // start from what is displayed (not from the stored `order`, which may hold duplicates/gaps)
+    const ids = this.groups.filter((g) => g.editable).map((g) => g.key)
+    const from = ids.indexOf(key)
+    if (from < 0) return
+    ids.splice(from, 1)
+    ids.splice(Math.max(0, Math.min(newIndex, ids.length)), 0, key)
+    const pool: { id: string; order: number }[] = gb === 'status' ? this.projectColumns : this.fieldOptions(gb)
+    const changed: { id: string; order: number }[] = []
+    ids.forEach((id, n) => {
+      const x = pool.find((p) => p.id === id)
+      if (x && x.order !== n) { x.order = n; changed.push(x) }
+    })
+    if (!changed.length) return
+    if (gb === 'status') await db.columns.bulkPut(plain(changed as Column[]))
+    else await db.options.bulkPut(plain(changed as FieldOption[]))
   }
 
   // ---------- projects ----------
