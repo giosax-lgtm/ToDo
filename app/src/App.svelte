@@ -15,7 +15,7 @@
   let sidebarOpen = $state(false)
 
   // appearance prefs -> CSS variables
-  // theme: light | dark | system
+  // theme: light | dark | claude | system
   const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
   let systemDark = $state(darkQuery.matches)
   $effect(() => {
@@ -25,7 +25,7 @@
   })
   $effect(() => {
     const t = store.pref('theme', 'system')
-    document.documentElement.dataset.theme = t === 'dark' || (t === 'system' && systemDark) ? 'dark' : 'light'
+    document.documentElement.dataset.theme = t === 'claude' ? 'claude' : t === 'dark' || (t === 'system' && systemDark) ? 'dark' : 'light'
   })
 
   $effect(() => {

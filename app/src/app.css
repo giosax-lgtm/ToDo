@@ -282,3 +282,21 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 :root[data-theme='dark'] .gstatus.ok { background: #1e3a24; color: #8fd99b; }
 :root[data-theme='dark'] .gstatus.error, :root[data-theme='dark'] .gstatus.reconnect { background: #4a2220; color: #ffb4ab; }
 :root[data-theme='dark'] .danger, :root[data-theme='dark'] .overdue { color: #ff8a80; }
+
+/* Claude theme: warm cream + terracotta */
+:root[data-theme='claude'] {
+  --text: #29261b;
+  --muted: #6e6a5a;
+  --border: #e0dccd;
+  --bg: #f5f4ed;
+  --surface: #faf9f5;
+  --surface-2: #f0eee6;
+  --surface-3: #ebe8dd;
+  --hover: #ece9dd;
+  --sel-bg: #f6e4da;
+  --side-active: #c15f3c;
+  --aubergine: #2b2823;
+  --aubergine-2: #34312b;
+  --accent: #c15f3c;
+}
+:root[data-theme='claude'] .sidebar { color: #ece9dd; }

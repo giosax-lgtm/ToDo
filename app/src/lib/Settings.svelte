@@ -89,6 +89,7 @@
           <option value="system">Match system</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
+          <option value="claude">Claude theme</option>
         </select>
       </label>
       <label class="srow">Interface size <b>{store.pref('uiScale', 100)}%</b>
