@@ -1,5 +1,5 @@
 # WORKFLOW GitHub Actions: a ogni push su 'main' costruisce l'app (npm ci + npm run build in app/) e pubblica app/dist su GitHub Pages.
-# E' il metodo di pubblicazione online descritto in SETUP.md (Parte B). Il job 'build' produce l'artefatto, il job 'deploy' lo mette online.
+# E' il metodo di pubblicazione online descritto in SETUP.md (Parte B). Il job 'build' produce l'artefatto, il job 'deploy' lo mette online, il job 'cleanup' tiene solo gli ultimi 5 deployment.
 
 name: Deploy to GitHub Pages
 
@@ -11,6 +11,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: write
 
 concurrency:
   group: pages
@@ -43,3 +44,16 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Dopo il deploy: tiene solo gli ultimi 5 deployment (i piu' vecchi vengono disattivati e cancellati).
+  cleanup:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/deployments?per_page=100" --jq '.[5:][] | .id' | while read id; do
+            gh api -X POST "repos/${{ github.repository }}/deployments/$id/statuses" -f state=inactive > /dev/null || true
+            gh api -X DELETE "repos/${{ github.repository }}/deployments/$id" > /dev/null || true
+          done
