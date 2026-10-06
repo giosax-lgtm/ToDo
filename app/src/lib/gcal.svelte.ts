@@ -72,7 +72,13 @@ class GCal {
       const r = await this.api(token, '/calendars/' + encodeURIComponent(saved) + '/events?maxResults=1')
       if (r.status !== 404 && r.status !== 410) return saved
       store.setPref('gCalId', undefined)
+      store.setPref('gCalIdT', 0) // so any calendar id shared by another device wins
       store.setPref('gEvents', {})
+      // Another device may already have made a replacement: pull the shared id before creating a second one.
+      await cloud.sync()
+      await cloud.ready()
+      const adopted = store.pref('gCalId', '')
+      if (adopted && adopted !== saved) return adopted
     }
     // Reuse a calendar created earlier (another device, or after the local data was cleared) instead of making a duplicate.
     const list = await this.api<{ items?: { id: string; summary?: string }[] }>(token, '/users/me/calendarList?minAccessRole=owner')
