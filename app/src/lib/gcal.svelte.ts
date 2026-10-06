@@ -67,7 +67,9 @@ class GCal {
     const saved = store.pref('gCalId', '')
     if (saved) {
       const r = await this.api(token, '/calendars/' + encodeURIComponent(saved))
-      if (r.status === 200) return saved
+      // Only a definite "gone" means we should look for / create another one; any other answer (403, 5xx, network
+      // hiccup) keeps the saved calendar, otherwise every reconnect would spawn a duplicate.
+      if (r.status !== 404 && r.status !== 410) return saved
     }
     // Reuse a calendar created earlier (another device, or after the local data was cleared) instead of making a duplicate.
     const list = await this.api<{ items?: { id: string; summary?: string }[] }>(token, '/users/me/calendarList?minAccessRole=owner')
