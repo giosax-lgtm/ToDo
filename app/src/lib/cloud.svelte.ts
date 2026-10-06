@@ -1,16 +1,28 @@
 import { db } from './db'
 import { store } from './store.svelte'
-import { ALL_SCOPES, forgetToken, getToken } from './google'
+import { ALL_SCOPES, forgetToken, getToken, hasValidToken, loadGis } from './google'
 import { listFiles, download, upload, type DriveFile } from './drive'
 import { createVault, decryptJson, encryptJson, openVault, type KeyFile } from './crypto'
 import { detectLocal, hashAll, mergeRemote, purgeTombstones, type BaseEnt, type FileState } from './merge'
 
 const KEYFILE = 'keyfile.json'
 
+/** Automatic sync frequency options (minutes; 0 = instant, null = manual only). */
+export const SYNC_FREQ: [string, string, number | null][] = [
+  ['instant', 'Automatic: a few seconds after each change (and every minute)', 0],
+  ['15m', 'Every 15 minutes', 15],
+  ['1h', 'Every hour', 60],
+  ['6h', 'Every 6 hours', 360],
+  ['24h', 'Once a day', 1440],
+  ['manual', 'Manual only (Sync now button)', null],
+]
+
 class Cloud {
   status = $state<'off' | 'locked' | 'syncing' | 'ok' | 'error'>('off')
   message = $state('')
   lastSync = $state<number | null>(null)
+  /** True when Google sign-in must be renewed (token lives in memory only and lasts 1 hour). */
+  authNeeded = $state(false)
   /** Shown once after creating a vault. */
   recoveryKey = $state<string | null>(null)
 
@@ -20,6 +32,21 @@ class Cloud {
   private last: Promise<void> = Promise.resolve()
 
   get enabled() { return store.pref('cloudOn', false) }
+  get freq() { return store.pref('syncFreq', 'instant') }
+
+  /**
+   * Called by timers/events. 'change' = local edit, 'tick' = periodic check, 'start' = app opened.
+   * Interval modes sync when the last successful sync is older than the interval (checked on start and every minute while the app is open).
+   */
+  autoSync(trigger: 'change' | 'tick' | 'start') {
+    if (!this.enabled || !this.dek) return
+    const mins = (SYNC_FREQ.find((f) => f[0] === this.freq) ?? SYNC_FREQ[0])[2]
+    if (mins === null) return // manual
+    if (mins === 0) { void this.sync(); return }
+    if (trigger === 'change') return
+    const last = store.pref('cloudLast', 0)
+    if (Date.now() - last >= mins * 60000) void this.sync()
+  }
   private get clientId() { return store.pref('gClientId', '').trim() }
 
   private device(): string {
@@ -30,8 +57,29 @@ class Cloud {
 
   async init() {
     if (!this.enabled) { this.status = 'off'; return }
+    this.lastSync = store.pref('cloudLast', 0) || null
     this.dek = ((await db.settings.get('x:dek'))?.value as CryptoKey | undefined) ?? null
     this.status = this.dek ? 'ok' : 'locked'
+  }
+
+  /**
+   * Make sure a Google token is available. Silent attempt first (works while the browser is signed in to Google);
+   * if that fails, call again with interactive=true from a user click (a quick popup, usually closes by itself).
+   */
+  async ensureAuth(interactive: boolean): Promise<boolean> {
+    if (!this.clientId) return false
+    if (hasValidToken()) { this.authNeeded = false; return true }
+    if (!interactive) { this.authNeeded = true; return false }
+    try {
+      await loadGis()
+      await getToken(this.clientId, ALL_SCOPES, interactive)
+      this.authNeeded = false
+      return true
+    } catch (e) {
+      this.authNeeded = true
+      if (interactive) { this.status = 'error'; this.message = (e as Error).message }
+      return false
+    }
   }
 
   /** Resolves when the running/last sync has finished (used so Calendar waits for the shared calendar id). */
@@ -117,7 +165,7 @@ class Cloud {
     try {
       this.status = 'syncing'
       let token: string
-      try { token = await this.token(false) } catch { this.status = 'error'; this.message = 'Sign-in needed: open Settings and press Reconnect'; return }
+      try { token = await this.token(false) } catch { this.authNeeded = true; this.status = 'ok'; this.message = ''; return } // paused until the user reconnects
 
       const me = this.device()
       const myName = `dev-${me}.enc`
@@ -172,6 +220,7 @@ class Cloud {
       }
       await db.settings.put({ key: 'x:base', value: base })
       this.lastSync = Date.now()
+      store.setPref('cloudLast', this.lastSync)
       this.status = 'ok'
       this.message = ''
     } catch (e) {

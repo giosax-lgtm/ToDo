@@ -52,6 +52,8 @@ export const hasValidToken = () => !!token && token.exp > Date.now() + 30000
  */
 export async function getToken(clientId: string, scope: string, interactive: boolean): Promise<string> {
   if (hasValidToken()) return token!.value
+  // Background calls never open Google windows: sign-in only happens on an explicit user action.
+  if (!interactive) throw new Error('Google sign-in needed')
   await loadGis()
   return new Promise<string>((resolve, reject) => {
     const client = window.google!.accounts.oauth2.initTokenClient({

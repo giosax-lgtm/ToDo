@@ -26,6 +26,9 @@ export function sortable(node: HTMLElement, opts: Opts) {
     ghostClass: 'drag-ghost',
     draggable: opts.item,
     handle: opts.handle,
+    // let links be clicked instead of starting a drag (and don't cancel the click)
+    filter: 'a',
+    preventOnFilter: false,
     sort: opts.sort ?? true,
     onEnd(evt) {
       const { item, from, to, oldIndex, newIndex } = evt

@@ -3,6 +3,7 @@
   import { resizer } from './resizer'
   import TagPicker from './TagPicker.svelte'
   import Reminders from './Reminders.svelte'
+  import Linkify from './Linkify.svelte'
   import type { Task } from './types'
 
   let { task }: { task: Task } = $props()
@@ -61,13 +62,16 @@
     <label class="block">Description
       <textarea rows="4" value={task.description} onchange={(e) => patch({ description: e.currentTarget.value })}></textarea>
     </label>
+    {#if /https?:\/\//.test(task.description)}
+      <div class="block desc-links"><Linkify text={task.description} /></div>
+    {/if}
 
     <div class="block">
       <span class="lbl">Subtasks</span>
       {#each task.subtasks as s (s.id)}
         <div class="sub">
           <input type="checkbox" checked={s.done} onchange={(e) => setSub(s.id, { done: e.currentTarget.checked })} />
-          <span class:struck={s.done}>{s.text}</span>
+          <span class:struck={s.done}><Linkify text={s.text} /></span>
           <button class="icon" aria-label="Remove subtask" onclick={() => patch({ subtasks: task.subtasks.filter((x) => x.id !== s.id) })}>✕</button>
         </div>
       {/each}

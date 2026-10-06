@@ -31,12 +31,20 @@ Scegli come usarla (puoi anche combinare le due, vedi la fine):
 
 **Uso quotidiano:** clicchi solo l'icona. L'app installata tiene una copia di sé nel browser, quindi dovrebbe aprirsi anche con il server spento (non è garantito: se non si apre, avvia `avvia-todo.bat`). Il server serve solo per la prima installazione e per gli **aggiornamenti** dell'app: rilancia `avvia-todo.bat` dopo aver ricevuto una nuova versione.
 
-## A3. Backup (consigliato)
+## A3. Aggiornare l'app (dopo ogni nuova versione del codice)
+L'app che vedi è quella costruita l'ultima volta: dopo una modifica al codice va **ricostruita**.
+1. Chiudi il terminale di `avvia-todo.bat` (se è aperto).
+2. Rilancia **`avvia-todo.bat`**: ricostruisce l'app e riavvia il server.
+3. Apri `http://localhost:4173` nel browser e ricarica forzando con **Ctrl+Shift+R** (ricarica ignorando la cache).
+4. App installata (icona): con il server acceso apri una volta il sito nel browser, poi chiudi e riapri l'app installata (a volte serve riaprirla due volte per vedere la novità).
+I dati non si perdono: restano nel browser. **Non cambiare la porta (4173)**, altrimenti l'indirizzo cambia e i dati sembrano spariti.
+
+## A4. Backup (consigliato)
 Senza Google, l'unica copia dei dati è nel browser di quel PC. Proteggila:
 - **File di backup**: ⚙ Settings → *Backup* → *Export encrypted backup* (passphrase a tua scelta). Salva il file su OneDrive/Drive/chiavetta. *Import backup* lo ripristina (sostituisce i dati del dispositivo).
-- **Backup/sync automatico su Drive**: serve il Client ID Google (sezione **Comune → C1**), poi ⚙ Settings → *Encrypted sync* (sezione C2). Nel Client ID autorizza l'origine `http://localhost:4173`.
+- **Backup/sync automatico su Drive** (facoltativo, spento di default; si disattiva da ⚙ Settings): serve il Client ID Google (sezione **Comune → C1**), poi ⚙ Settings → *Encrypted sync* (sezione C2). Nel Client ID autorizza l'origine `http://localhost:4173`.
 
-## A4. Cosa perde i dati (solo locale)
+## A5. Cosa perde i dati (solo locale)
 - "Cancella dati di navigazione" con **"Cookie e altri dati dei siti"** spuntato (la sola cache non tocca i dati).
 - Finestra in incognito, altro profilo o altro browser, reinstallazione di Windows/browser.
 - Cambiare indirizzo o porta (`localhost:4173` ≠ `localhost:5173` ≠ sito pubblicato): sono archivi separati.
@@ -64,6 +72,11 @@ Annota l'URL: serve in C1 (come origine autorizzata).
 
 ## B2. Collegare Google
 Segui la sezione **Comune (C1, C2)** qui sotto.
+
+## B2b. Aggiornare la versione online
+- **GitHub Pages**: fai `git push` sul branch `main`; il workflow ricostruisce e ripubblica da solo (1-2 minuti).
+- **Cloudflare Pages**: `cd app && npm run build`, poi ricarica la cartella `app/dist` su Cloudflare.
+- Sui dispositivi: apri l'app (con internet) e chiudila/riaprila una o due volte; l'app si aggiorna da sola. Se non cambia, ricarica con Ctrl+F5 (PC).
 
 ## B3. Installare su PC
 Apri l'URL pubblicato in Chrome/Edge e installa come in **A2** (stessi passi, ma dall'URL del sito).

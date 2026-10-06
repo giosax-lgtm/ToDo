@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from './store.svelte'
   import Pill from './Pill.svelte'
+  import Linkify from './Linkify.svelte'
   import type { Task } from './types'
 
   let { task }: { task: Task } = $props()
@@ -32,7 +33,7 @@
       onclick={(e) => { e.stopPropagation(); store.updateTask(task.id, { done: !task.done }) }}>
       {task.done ? '✓' : ''}
     </button>
-    <span class="card-title">{task.title}</span>
+    <span class="card-title"><Linkify text={task.title} /></span>
   </div>
   {#if showPriority || showDue || showSub || showRem}
     <div class="meta">
@@ -43,7 +44,7 @@
     </div>
   {/if}
   {#if task.description && !hidden.includes('description')}
-    <p class="card-desc">{task.description}</p>
+    <p class="card-desc"><Linkify text={task.description} /></p>
   {/if}
   {#each tagGroups as g (g.field.id)}
     <div class="tag-row">

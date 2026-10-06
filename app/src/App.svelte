@@ -10,6 +10,7 @@
   import Settings from './lib/Settings.svelte'
   import { gcal } from './lib/gcal.svelte'
   import { cloud } from './lib/cloud.svelte'
+  import { hasValidToken } from './lib/google'
 
   let sidebarOpen = $state(false)
 
@@ -34,7 +35,7 @@
   $effect(() => {
     if (!store.ready || !cloud.enabled) return
     store.syncEntities()
-    const h = setTimeout(() => cloud.sync(), 5000)
+    const h = setTimeout(() => cloud.autoSync('change'), 5000)
     return () => clearTimeout(h)
   })
 
@@ -45,17 +46,20 @@
       gcal.init()
       await cloud.init()
       store.checkReminders()
-      void cloud.sync()
+      if (cloud.enabled || gcal.connected) await cloud.ensureAuth(false) // just marks 'reconnect needed', no popup
+      cloud.autoSync('start')
+      if (gcal.connected) void gcal.sync()
     })
     const tick = setInterval(() => {
       if (!store.ready) return
+      cloud.authNeeded = (cloud.enabled || gcal.connected) && !hasValidToken() // token expires after 1 h
       store.checkReminders()
     }, 20000)
-    const pull = setInterval(() => document.visibilityState === 'visible' && cloud.sync(), 60000)
+    const pull = setInterval(() => document.visibilityState === 'visible' && cloud.autoSync('tick'), 60000)
     const vis = () => {
       if (document.visibilityState !== 'visible' || !store.ready) return
       store.checkReminders()
-      void cloud.sync()
+      cloud.autoSync('tick')
     }
     document.addEventListener('visibilitychange', vis)
     return () => {

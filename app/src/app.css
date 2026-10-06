@@ -234,3 +234,13 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .gstatus.syncing { background: #eef6fc; }
 
 .filebtn { cursor: pointer; }
+
+.authbar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 90; background: #fff8e1; border: 1px solid #e2a400; border-radius: 10px; padding: 6px 12px; display: flex; gap: 10px; align-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.2); font-size: .9rem; }
+
+.side-btn.warn { color: #ffd479; width: 100%; }
+
+.side-btn.sync { display: flex; align-items: center; gap: 8px; width: 100%; font-size: .9rem; }
+.side-btn.sync .dot { width: 10px; height: 10px; border-radius: 50%; background: #9a9a9a; flex: none; }
+.side-btn.sync.ok .dot { background: #2eb67d; box-shadow: 0 0 0 3px rgba(46,182,125,.25); }
+.side-btn.sync.warn .dot { background: #ecb22e; box-shadow: 0 0 0 3px rgba(236,178,46,.3); }
+.side-btn.sync.warn { color: #ffd479; }

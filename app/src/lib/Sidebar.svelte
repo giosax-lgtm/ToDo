@@ -1,8 +1,23 @@
 <script lang="ts">
   import { store } from './store.svelte'
   import { resizer } from './resizer'
+  import { cloud } from './cloud.svelte'
+  import { gcal } from './gcal.svelte'
 
   let { open = $bindable(false) }: { open?: boolean } = $props()
+  const hhmm = (t: number | null) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')
+
+  /** green = working, yellow = needs attention (open Settings to reconnect), gray = not used */
+  const sync = $derived.by(() => {
+    if (!cloud.enabled && !gcal.connected) return { level: 'off', text: 'Sync off', tip: 'Google sync is not set up (Settings)' }
+    if (cloud.status === 'syncing') return { level: 'ok', text: 'Syncing…', tip: 'Syncing with Google' }
+    if (cloud.authNeeded) return { level: 'warn', text: 'Not synced — reconnect', tip: 'Google sign-in expired. Open Settings and press Sync now / Reconnect.' }
+    if (cloud.status === 'error' || cloud.status === 'locked' || gcal.status === 'error')
+      return { level: 'warn', text: 'Sync problem', tip: cloud.message || gcal.message || 'Open Settings for details' }
+    const t = cloud.enabled ? cloud.lastSync : gcal.lastSync
+    return { level: 'ok', text: t ? 'Synced ' + hhmm(t) : 'Sync on', tip: 'Everything is synced. Click to open Settings.' }
+  })
+
   let adding = $state(false)
   let name = $state('')
 
@@ -42,6 +57,9 @@
       onblur={add} />
   {/if}
   <div class="side-foot">
+    <button class="side-btn sync {sync.level}" title={sync.tip} onclick={() => (store.settingsOpen = true)}>
+      <span class="dot"></span>{sync.text}
+    </button>
     <button class="side-btn" onclick={() => (store.settingsOpen = true)}>⚙ Settings</button>
   </div>
 </nav>

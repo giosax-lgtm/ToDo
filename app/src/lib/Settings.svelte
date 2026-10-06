@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store } from './store.svelte'
   import { gcal } from './gcal.svelte'
-  import { cloud } from './cloud.svelte'
+  import { cloud, SYNC_FREQ } from './cloud.svelte'
   import { exportBackup, importBackup } from './backup'
   import { onMount } from 'svelte'
 
@@ -122,7 +122,7 @@
       <div class="presets">
         {#if gcal.connected}
           <button class="chip primary" onclick={() => gcal.connect()}>Reconnect</button>
-          <button class="chip" onclick={() => gcal.sync()}>Sync now</button>
+          <button class="chip" onclick={async () => { if (await cloud.ensureAuth(true)) void gcal.sync() }}>Sync now</button>
           <button class="chip danger" onclick={() => gcal.disconnect()}>Disconnect</button>
         {:else}
           <button class="chip primary" onclick={() => gcal.connect()}>Connect Google Calendar</button>
@@ -186,8 +186,14 @@
           <button class="chip" onclick={join}>Unlock existing vault (other device)</button>
         </div>
       {:else}
+        <label class="srow">Sync frequency
+          <select value={cloud.freq} onchange={(e) => store.setPref('syncFreq', e.currentTarget.value)}>
+            {#each SYNC_FREQ as [v, l] (v)}<option value={v}>{l}</option>{/each}
+          </select>
+        </label>
+        <small class="muted">Scheduled syncs run while the app is open (the app checks on start and every minute). Nothing runs in the background when it is closed.</small>
         <div class="presets">
-          <button class="chip primary" onclick={() => cloud.sync()}>Sync now</button>
+          <button class="chip primary" onclick={async () => { if (await cloud.ensureAuth(true)) void cloud.sync() }}>Sync now</button>
           <button class="chip danger" onclick={() => { if (confirm('Forget the key on this device? Cloud data stays; you will need the passphrase to reconnect.')) cloud.lock() }}>Lock / forget key on this device</button>
         </div>
       {/if}
