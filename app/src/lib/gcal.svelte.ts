@@ -64,13 +64,11 @@ class GCal {
   }
 
   private async ensureCalendar(token: string): Promise<string> {
+    // Trust the saved id without probing it: with the narrow calendar.app.created scope a GET on the calendar can
+    // fail even though it exists, which used to spawn a new calendar on every refresh. A really deleted calendar is
+    // detected by the 404 on the event write in sync().
     const saved = store.pref('gCalId', '')
-    if (saved) {
-      const r = await this.api(token, '/calendars/' + encodeURIComponent(saved))
-      // Only a definite "gone" means we should look for / create another one; any other answer (403, 5xx, network
-      // hiccup) keeps the saved calendar, otherwise every reconnect would spawn a duplicate.
-      if (r.status !== 404 && r.status !== 410) return saved
-    }
+    if (saved) return saved
     // Reuse a calendar created earlier (another device, or after the local data was cleared) instead of making a duplicate.
     const list = await this.api<{ items?: { id: string; summary?: string }[] }>(token, '/users/me/calendarList?minAccessRole=owner')
     const existing = list.status === 200 ? (list.data?.items ?? []).filter((c) => c.summary === CAL_NAME).map((c) => c.id).sort()[0] : undefined
@@ -108,7 +106,7 @@ class GCal {
   }
 
   /** Push the current reminders to Google Calendar (create / update / delete). */
-  async sync() {
+  async sync(retry = true) {
     if (!this.connected) return
     const clientId = this.clientId.trim()
     let token: string
@@ -138,6 +136,11 @@ class GCal {
         if (stored[id] === d.sig) continue
         let r = await this.api(token, base, 'POST', d.ev)
         if (r.status === 409) r = await this.api(token, base + '/' + id, 'PUT', d.ev)
+        if (r.status === 404 && retry) { // the calendar was deleted in Google Calendar: forget it and start over
+          store.setPref('gCalId', undefined)
+          store.setPref('gEvents', {})
+          return this.sync(false)
+        }
         if (r.status >= 300) throw new Error('Calendar error ' + r.status)
         stored[id] = d.sig
       }
