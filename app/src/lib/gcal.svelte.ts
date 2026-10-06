@@ -69,6 +69,15 @@ class GCal {
       const r = await this.api(token, '/calendars/' + encodeURIComponent(saved))
       if (r.status === 200) return saved
     }
+    // Reuse a calendar created earlier (another device, or after the local data was cleared) instead of making a duplicate.
+    const list = await this.api<{ items?: { id: string; summary?: string }[] }>(token, '/users/me/calendarList?minAccessRole=owner')
+    const existing = list.status === 200 ? (list.data?.items ?? []).filter((c) => c.summary === CAL_NAME).map((c) => c.id).sort()[0] : undefined
+    if (existing) {
+      store.setPref('gCalId', existing)
+      store.setPref('gCalIdT', Date.now())
+      store.setPref('gEvents', {})
+      return existing
+    }
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
     const r = await this.api<{ id: string }>(token, '/calendars', 'POST', {
       summary: CAL_NAME,
