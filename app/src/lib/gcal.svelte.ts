@@ -64,11 +64,16 @@ class GCal {
   }
 
   private async ensureCalendar(token: string): Promise<string> {
-    // Trust the saved id without probing it: with the narrow calendar.app.created scope a GET on the calendar can
-    // fail even though it exists, which used to spawn a new calendar on every refresh. A really deleted calendar is
-    // detected by the 404 on the event write in sync().
+    // Probe the saved calendar through its events (a plain GET on the calendar can fail under the narrow
+    // calendar.app.created scope even though it exists). Only a definite 404/410 means it was deleted; any other
+    // answer keeps the saved id so a hiccup never spawns a duplicate.
     const saved = store.pref('gCalId', '')
-    if (saved) return saved
+    if (saved) {
+      const r = await this.api(token, '/calendars/' + encodeURIComponent(saved) + '/events?maxResults=1')
+      if (r.status !== 404 && r.status !== 410) return saved
+      store.setPref('gCalId', undefined)
+      store.setPref('gEvents', {})
+    }
     // Reuse a calendar created earlier (another device, or after the local data was cleared) instead of making a duplicate.
     const list = await this.api<{ items?: { id: string; summary?: string }[] }>(token, '/users/me/calendarList?minAccessRole=owner')
     const existing = list.status === 200 ? (list.data?.items ?? []).filter((c) => c.summary === CAL_NAME).map((c) => c.id).sort()[0] : undefined
