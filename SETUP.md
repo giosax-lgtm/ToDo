@@ -119,6 +119,61 @@ Apri l'URL pubblicato in Chrome/Edge e installa come in **A2** (stessi passi, ma
 
 ---
 
+# Git e GitHub: salvare le modifiche e tenere tutto sincronizzato
+
+Il codice sta in due posti: la cartella sul PC (repo locale) e GitHub (repo remoto, chiamato `origin`). Il branch si chiama `main`. I tuoi **dati** (task) non c'entrano: stanno nel browser e nel backup cifrato su Drive.
+
+## G1. Impostazione una tantum
+```
+git config user.name  "tuo-username-github"
+git config user.email "ID+tuo-username@users.noreply.github.com"
+```
+L'email `noreply` si trova su GitHub in Settings → Emails. Così la tua vera email non finisce nei commit. Attiva lì anche *Keep my email addresses private* e *Block command line pushes that expose my email*.
+
+Collegare il repo locale a GitHub (solo la prima volta, se non c'è già `origin`):
+```
+git remote add origin https://github.com/<utente>/<repo>.git
+git branch -M main
+git push -u origin main
+```
+Al primo push si apre il login GitHub nel browser. Poi le credenziali restano salvate.
+
+## G2. Ogni volta che modifichi qualcosa
+Dalla cartella del progetto:
+```
+git status                      # vedi cosa è cambiato
+git add .                       # prepara tutte le modifiche
+git commit -m "cosa ho cambiato"
+git push                        # invia su GitHub
+```
+Con GitHub Pages, il push avvia da solo il deploy: dopo 1-2 minuti la versione online è aggiornata (stato in *Actions* sul repo). In VS Code puoi fare lo stesso dal pannello *Source Control*: scrivi il messaggio, **Commit**, poi **Sync Changes**.
+
+## G3. Tenere PC e GitHub allineati
+- **Prima di iniziare a lavorare** (soprattutto se hai modificato da un altro PC o da GitHub): `git pull`
+- **Dopo aver finito**: `git add .`, `git commit`, `git push`
+- Controllo rapido: `git status -sb`
+  - `ahead N`: hai N commit da inviare, quindi fai `git push`
+  - `behind N`: su GitHub ci sono N commit nuovi, quindi fai `git pull`
+  - nessuna indicazione: sei allineato
+- Se `git push` dice *rejected / non-fast-forward*, su GitHub c'è qualcosa che non hai in locale: fai `git pull` (risolvi eventuali conflitti, poi commit) e ripeti `git push`.
+- Lavora su un solo PC alla volta, oppure fai sempre `pull` prima e `push` dopo, per evitare conflitti.
+
+## G4. Cosa non committare
+- Mai password, token, chiavi o file di backup (`*.todo-backup.json`). Il Client ID Google non è un segreto, ma l'app lo legge dalle impostazioni e non dal codice.
+- `node_modules` e `dist` sono già esclusi dal `.gitignore`. `Screenshots/` anche.
+- Evita `git push --force`: serve solo in casi eccezionali, come riscrivere la cronologia, e sovrascrive quello che c'è su GitHub.
+
+## G5. Nuovo PC o ripartenza da zero
+```
+git clone https://github.com/<utente>/<repo>.git
+cd <repo>/app
+npm install
+npm run serve
+```
+I task si recuperano con il sync cifrato (C2, punto 4) o con un file di backup.
+
+---
+
 # Combinare A e B
 Puoi usare `localhost` sul PC e il sito pubblicato sul telefono: sono archivi separati, ma con lo stesso Client ID e la stessa passphrase il sync cifrato li allinea.
 
