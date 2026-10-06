@@ -69,7 +69,7 @@
   }
 
   function resetLook() {
-    for (const k of ['uiScale', 'textScale', 'font', 'colW']) store.setPref(k, undefined)
+    for (const k of ['uiScale', 'textScale', 'font', 'colW', 'theme']) store.setPref(k, undefined)
   }
 </script>
 
@@ -84,6 +84,13 @@
 
     <section>
       <h3>Appearance</h3>
+      <label class="srow">Theme
+        <select value={store.pref('theme', 'system')} onchange={(e) => store.setPref('theme', e.currentTarget.value)}>
+          <option value="system">Match system</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
       <label class="srow">Interface size <b>{store.pref('uiScale', 100)}%</b>
         <input type="range" min="70" max="150" step="5" value={store.pref('uiScale', 100)}
           oninput={(e) => store.setPref('uiScale', +e.currentTarget.value)} />

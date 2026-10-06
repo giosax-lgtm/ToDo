@@ -15,6 +15,19 @@
   let sidebarOpen = $state(false)
 
   // appearance prefs -> CSS variables
+  // theme: light | dark | system
+  const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  let systemDark = $state(darkQuery.matches)
+  $effect(() => {
+    const on = () => (systemDark = darkQuery.matches)
+    darkQuery.addEventListener('change', on)
+    return () => darkQuery.removeEventListener('change', on)
+  })
+  $effect(() => {
+    const t = store.pref('theme', 'system')
+    document.documentElement.dataset.theme = t === 'dark' || (t === 'system' && systemDark) ? 'dark' : 'light'
+  })
+
   $effect(() => {
     const r = document.documentElement
     r.style.fontSize = (14 * store.pref('uiScale', 100)) / 100 + 'px'
