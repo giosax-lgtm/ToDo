@@ -71,6 +71,7 @@
     <button class="side-btn sync {sync.level}" title={sync.tip} onclick={() => (store.settingsOpen = true)}>
       <span class="dot"></span>{sync.text}
     </button>
+    <button class="side-btn" onclick={() => { store.setNotesWin({ open: true, min: false }); open = false }}>📝 Notes</button>
     <button class="side-btn" onclick={() => (store.settingsOpen = true)}>⚙ Settings</button>
   </div>
 </nav>

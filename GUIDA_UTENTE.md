@@ -107,6 +107,19 @@ Nel dettaglio di un elemento, sezione **🔔 Reminders**:
 
 **Con l'app chiusa**: collega Google Calendar (sezione 8) e il telefono ti avvisa lo stesso.
 
+## 6b. Note (📝 Notes)
+
+Ogni lista ha il suo **quaderno di note**, stile OneNote. Si apre con **📝 Notes** (in alto a destra o nella barra laterale) in una finestra che resta sopra la board.
+
+- **Finestra**: trascinala dalla barra del titolo, ridimensionala dai bordi, riducila a barra (–), ingrandiscila (▢) o chiudila (✕). Con il pulsante ⇥ la **agganci al bordo destro** (pannello a tutta altezza, la board si restringe; la larghezza si cambia dal bordo sinistro); con ⧉ la rendi di nuovo flottante. Posizione, dimensione e modalità vengono ricordate.
+- **Sezioni** (schede in alto) e **pagine** (elenco a sinistra): con **+** ne crei di nuove; puoi rinominare, eliminare e spostare su/giù le pagine.
+- **Scrivere dove vuoi**: la pagina è una tela libera. Clicca in un punto vuoto e lì nasce una **casella di testo**; trascinala dalla maniglia che appare sopra (⋯), allargala dal bordo destro, eliminala con ✕ in alto. Le caselle vuote spariscono da sole.
+- **Immagini**: incolla (Ctrl+V, anche una schermata), trascina un file sulla pagina o usa il pulsante 🖼. Le immagini vengono ridotte (max 1600 px) e salvate dentro la nota. Clicca un'immagine per **ridimensionarla** trascinando la maniglia in basso a destra (Canc la elimina).
+- **Disegno a mano libera**: il pulsante ✏ apre un riquadro con penna (colore, spessore), gomma e Clear; con Insert il disegno entra nella nota come immagine (poi si può ridimensionare, ma non più modificare).
+- **Editor** (agisce sulla casella in cui stai scrivendo): grassetto, corsivo, sottolineato, barrato, font e dimensione, colore testo ed evidenziatore, titoli, elenchi (Tab per annidare), allineamento, link, tabella. Incolla da Word, web o altri editor mantenendo la formattazione.
+- **Esporta**: menu Export, per la pagina, la sezione o tutta la lista, in Word (.docx), PDF (si apre la stampa: scegli "Salva come PDF"), HTML, Markdown o testo.
+- Le note si sincronizzano e finiscono nei backup come il resto dei dati.
+
 ## 7. Impostazioni e aspetto (**⚙ Settings**)
 
 - **Theme**: *Match system*, *Light*, *Dark*, *Claude theme*.

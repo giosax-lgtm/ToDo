@@ -62,6 +62,9 @@ Comandi (da `app/`):
 | | `cloud.svelte.ts` | servizio di sync cifrata (`cloud`) |
 | | `gcal.svelte.ts` | reminder su Google Calendar (`gcal`) |
 | | `backup.ts` | export/import file di backup cifrato |
+| **Note** | `Notes.svelte` | finestra note flottante: sezioni, pagine, editor |
+| | `notehtml.ts` | sanificazione (lista bianca) dell'HTML delle note |
+| | `noteexport.ts`, `zip.ts` | esportazione docx/pdf/html/md/txt; mini writer zip |
 | **Interazione** | `sortable.ts` | azione drag & drop |
 | | `resizer.ts` | azione ridimensionamento pannelli |
 | **UI** | `Sidebar`, `Toolbar`, `Board`, `Column`, `Card`, `TableView`, `CardDetail`, `TagPicker`, `Reminders`, `Alerts`, `Settings`, `Pill`, `Linkify` (`.svelte`) | componenti |
@@ -148,6 +151,20 @@ Se la vista ha un ordinamento attivo, il riordino manuale è disabilitato (`sort
 ### 3.7 Backup su file (`backup.ts`)
 
 Esporta `store.syncEntities()` cifrato con una passphrase scelta al momento (PBKDF2 + AES-GCM). L'import decifra, **cancella tutto** (`wipeAll`) e applica i dati (`applySync`). È indipendente dalla sync su Drive.
+
+### 3.8b Quaderno note (`Notes.svelte`, `notehtml.ts`, `noteexport.ts`)
+
+Ogni lista ha un quaderno stile OneNote: **sezioni** (`noteSections`) che contengono **pagine** (`notes`, con `html`). Sono tabelle IndexedDB (schema v3) e record sincronizzati/inclusi nei backup come gli altri (`syncEntities`/`applySync`/`wipeAll`/`deleteProject` nello store).
+
+- **Finestra**: `Notes.svelte` è flottante e non modale; geometria e stato (aperta/ridotta/ingrandita) stanno nella preferenza `notesWin` (`store.notesWin` / `setNotesWin`).
+- **Tela e caselle**: una pagina contiene `boxes` (`NoteBox`: id, x, y, w, html) posizionate in modo assoluto; il vecchio campo `html` è letto come prima casella. Ogni casella è un `contenteditable` non controllato da Svelte (contenuto scritto da `boxInit`); `flush()` rilegge il DOM, scarta le caselle vuote (tranne l'attiva) e salva `boxes`. Per l'esportazione `pageHtml()` mette le caselle in ordine di lettura.
+- **Aggancio a destra**: `NotesWin.docked`; la finestra diventa un figlio flex di `.layout` (larghezza in `w:notesDock`, maniglia `resizer`).
+- **Editor**: `document.execCommand` sulla casella attiva. Salva con debounce di 0,5 s; una versione diversa arrivata dalla sync viene caricata solo se l'editor non ha il focus.
+- **Sicurezza**: ogni HTML passa da `sanitizeHtml()` (lista bianca di tag/stili, link solo http/https/mailto, solo immagini `data:` png/jpeg/gif/webp) quando si incolla e quando si salva.
+- **Esportazione**: `noteexport.ts` cammina sul DOM e produce Markdown, testo, HTML; il `.docx` è costruito a mano (XML + `zip.ts`); il PDF usa la stampa del browser in un iframe.
+- **Immagini**: incollate/trascinate/importate, ridotte a max 1600 px con canvas (`createImageBitmap`, niente `blob:` per via della CSP) e salvate come data URI nella casella; nel `.docx` diventano file in `word/media` (webp escluso).
+- **Ridimensionamento immagini e disegno**: cliccando un `<img>` si seleziona (`selImg`/`selRect`) e una maniglia cambia gli attributi `width`/`height` mantenendo le proporzioni. Il disegno è un `<canvas>` 1000x600 in un riquadro sopra la finestra; `padInsert()` ritaglia l'area tracciata e la inserisce come PNG (`placeImage`), quindi segue tutta la pipeline delle immagini (sync, esportazioni).
+- Limiti noti: conflitti = l'ultimo che scrive vince (per l'intera pagina).
 
 ### 3.8 Stile e temi (`app.css`)
 

@@ -119,6 +119,50 @@ export interface Group {
   apply: ((t: Task) => Partial<Task>) | null // what changes when a card is dropped here; null = not droppable
 }
 
+// Una SEZIONE del quaderno note di una lista (come le schede di OneNote). Contiene piu' pagine (NotePage.sectionId). Gestita da store.svelte.ts, mostrata da Notes.svelte.
+export interface NoteSection {
+  id: string
+  projectId: string
+  name: string
+  order: number
+}
+
+// Una CASELLA DI TESTO libera dentro una pagina (come in OneNote): posizione e larghezza in pixel sulla "tela" della pagina, e il suo contenuto HTML (sanificato).
+export interface NoteBox {
+  id: string
+  x: number
+  y: number
+  w: number
+  html: string
+}
+
+// Una PAGINA di note dentro una sezione. Il contenuto e' un insieme di caselle libere ('boxes'); 'html' e' il vecchio formato a testo unico, ancora letto
+// (diventa una casella al primo salvataggio). Ogni HTML e' SEMPRE passato da sanitizeHtml() (lib/notehtml.ts) prima di essere salvato o mostrato.
+export interface NotePage {
+  id: string
+  projectId: string
+  sectionId: string
+  title: string
+  html: string
+  boxes?: NoteBox[]
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
+// Posizione/dimensione/stato della finestra note (preferenza 'notesWin'): aperta, ridotta a barra del titolo, ingrandita.
+export interface NotesWin {
+  open: boolean
+  min: boolean
+  max: boolean
+  x: number
+  y: number
+  w: number
+  h: number
+  list: boolean // elenco pagine visibile
+  docked?: boolean // agganciata al bordo destro (pannello a tutta altezza) invece che flottante
+}
+
 // Riga della tabella 'settings' (chiave/valore) di IndexedDB: preferenze, vista corrente, larghezze pannelli, stato di sync. Accesso tramite store.pref()/setPref().
 export interface Setting {
   key: string

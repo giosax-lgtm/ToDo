@@ -19,6 +19,7 @@
   import Toolbar from './lib/Toolbar.svelte'
   import Alerts from './lib/Alerts.svelte'
   import Settings from './lib/Settings.svelte'
+  import Notes from './lib/Notes.svelte'
   import { gcal } from './lib/gcal.svelte'
   import { cloud } from './lib/cloud.svelte'
   import { hasValidToken } from './lib/google'
@@ -137,11 +138,13 @@
           <h1>{store.currentProject?.name}</h1>
           <p>Manage and monitor tasks</p>
         </div>
+        <button class="chip notes-open" title="Open the notes of this list" onclick={() => store.setNotesWin({ open: true, min: false })}>📝 Notes</button>
       </header>
       <Toolbar />
       {#if store.draft.layout === 'table'}<TableView />{:else}<Board />{/if}
     </main>
     <Alerts />
+    <Notes />
     {#if store.settingsOpen}<Settings />{/if}
     {#if store.openTask}<CardDetail task={store.openTask} />{/if}
   </div>

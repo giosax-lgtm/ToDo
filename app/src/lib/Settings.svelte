@@ -30,6 +30,14 @@
   const ago = (t: number | null) => (t ? new Date(t).toLocaleTimeString() : '—')
 
   // Stato locale della sezione Backup: archiviazione persistente concessa (letta al montaggio), passphrase del backup e messaggio di esito.
+  const TABS: [string, string][] = [
+    ['look', 'Appearance'],
+    ['gcal', 'Calendar'],
+    ['backup', 'Backup'],
+    ['sync', 'Sync'],
+  ]
+  let tab = $state('look')
+
   let persisted = $state<boolean | null>(null)
   let bpass = $state('')
   let bmsg = $state('')
@@ -101,6 +109,13 @@
       <button class="icon" aria-label="Close" onclick={close}>✕</button>
     </div>
 
+    <div class="tabs" role="tablist">
+      {#each TABS as [k, l] (k)}
+        <button role="tab" class="tab" class:sel={tab === k} aria-selected={tab === k} onclick={() => (tab = k)}>{l}</button>
+      {/each}
+    </div>
+
+    {#if tab === 'look'}
     <section>
       <h3>Appearance</h3>
       <label class="srow">Theme
@@ -132,6 +147,7 @@
       <small class="muted">Side panels can also be resized by dragging their edge.</small>
     </section>
 
+    {:else if tab === 'gcal'}
     <section>
       <h3>Google Calendar reminders</h3>
       <small class="muted">
@@ -167,6 +183,7 @@
       </div>
     </section>
 
+    {:else if tab === 'backup'}
     <section>
       <h3>Backup</h3>
       <small class="muted">
@@ -183,6 +200,7 @@
       {#if bmsg}<div class="gstatus">{bmsg}</div>{/if}
     </section>
 
+    {:else if tab === 'sync'}
     <section>
       <h3>Encrypted sync (Google Drive)</h3>
       <small class="muted">
@@ -235,5 +253,6 @@
         {:else}Sync is off{/if}
       </div>
     </section>
+    {/if}
   </div>
 </div>

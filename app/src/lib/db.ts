@@ -3,7 +3,7 @@
 // I tipi delle righe sono in lib/types.ts. Cambiare lo schema richiede un nuovo this.version(n) con la migrazione.
 
 import Dexie, { type EntityTable } from 'dexie'
-import type { Column, Field, FieldOption, Project, Setting, Task, View } from './types'
+import type { Column, Field, FieldOption, NotePage, NoteSection, Project, Setting, Task, View } from './types'
 
 // Sottoclasse Dexie che dichiara le tabelle tipizzate (una per entita' di lib/types.ts).
 class TodoDB extends Dexie {
@@ -14,8 +14,10 @@ class TodoDB extends Dexie {
   options!: EntityTable<FieldOption, 'id'>
   settings!: EntityTable<Setting, 'key'>
   views!: EntityTable<View, 'id'>
+  notes!: EntityTable<NotePage, 'id'>
+  noteSections!: EntityTable<NoteSection, 'id'>
 
-  // Nome del database e schema (indici). v1: tabelle base; v2: aggiunge 'views'. Solo i campi indicizzati sono elencati; gli altri sono memorizzati comunque.
+  // Nome del database e schema (indici). v1: tabelle base; v2: aggiunge 'views'; v3: aggiunge 'notes' e 'noteSections' (quaderno note). Solo i campi indicizzati sono elencati; gli altri sono memorizzati comunque.
   constructor() {
     super('todo-slack')
     this.version(1).stores({
@@ -27,6 +29,7 @@ class TodoDB extends Dexie {
       settings: 'key',
     })
     this.version(2).stores({ views: 'id, projectId' })
+    this.version(3).stores({ notes: 'id, projectId, sectionId', noteSections: 'id, projectId' })
   }
 }
 

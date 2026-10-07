@@ -8,7 +8,7 @@
 import { SvelteMap } from 'svelte/reactivity'
 import { db } from './db'
 import { COLOR_KEYS } from './colors'
-import type { Column, Field, FieldOption, Group, Project, Repeat, Task, View, ViewFilter } from './types'
+import type { Column, Field, FieldOption, Group, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Task, View, ViewFilter } from './types'
 
 // Genera un id univoco (UUID) per nuove entita'.
 const uid = () => crypto.randomUUID()
@@ -92,6 +92,8 @@ class AppStore {
   fields = $state<Field[]>([])
   options = $state<FieldOption[]>([])
   views = $state<View[]>([])
+  notes = $state<NotePage[]>([])
+  noteSections = $state<NoteSection[]>([])
   currentProjectId = $state('')
   currentViewId = $state('')
   draft = $state<View>(newView('', 'Default')) // working copy of the current view
@@ -151,13 +153,15 @@ class AppStore {
   // Rilegge tutte le tabelle da IndexedDB nello stato in memoria, riparando dati vecchi (order mancante, reminders assenti). Chiamata da init, applySync e wipeAll.
   /** (Re)read all data tables from IndexedDB into memory. */
   private async loadTables() {
-    const [projects, columns, tasks, fields, options, views] = await Promise.all([
+    const [projects, columns, tasks, fields, options, views, notes, noteSections] = await Promise.all([
       db.projects.toArray(),
       db.columns.toArray(),
       db.tasks.toArray(),
       db.fields.toArray(),
       db.options.toArray(),
       db.views.toArray(),
+      db.notes.toArray(),
+      db.noteSections.toArray(),
     ])
     this.projects = projects.sort((a, b) => a.order - b.order)
     this.columns = columns.map((c, i) => ({ ...c, order: c.order ?? i }))
@@ -165,6 +169,8 @@ class AppStore {
     this.fields = fields.sort((a, b) => a.order - b.order)
     this.options = options.map((o, i) => ({ ...o, order: o.order ?? i }))
     this.views = views
+    this.notes = notes
+    this.noteSections = noteSections
   }
 
   // Avvio dello store (chiamato da App.svelte): carica preferenze e dati, crea i dati iniziali se il database e' vuoto, assicura le viste per ogni lista, ripristina lista e vista dell'ultima sessione.
@@ -201,13 +207,15 @@ class AppStore {
     add('fields', this.fields)
     add('options', this.options)
     add('views', this.views.map((v) => ({ ...v, search: '' })))
+    add('notes', this.notes)
+    add('noteSections', this.noteSections)
     return out
   }
 
   // Applica a IndexedDB le modifiche arrivate dalla sync o da un import (dato null = cancella), poi ricarica lo stato, rigenera le viste mancanti e corregge selezione/task aperto se spariti. Chiamata da cloud.run() e backup.importBackup().
   /** Write remote changes to IndexedDB (data === null deletes) and refresh the in-memory state. */
   async applySync(changes: Map<string, unknown | null>) {
-    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views }
+    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections }
     const put: Record<string, unknown[]> = {}
     const del: Record<string, string[]> = {}
     for (const [key, data] of changes) {
@@ -231,8 +239,8 @@ class AppStore {
   // Cancella tutti i dati locali (non le preferenze). Usata da backup.importBackup() e da cloud.join() su un dispositivo nuovo.
   /** Remove all local data (used when joining an existing cloud vault from a fresh device). */
   async wipeAll() {
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views], async () => {
-      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear()])
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections], async () => {
+      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear()])
     })
     await this.loadTables()
   }
@@ -619,11 +627,15 @@ class AppStore {
     this.columns = this.columns.filter((c) => c.projectId !== id)
     this.tasks = this.tasks.filter((t) => t.projectId !== id)
     this.views = this.views.filter((v) => v.projectId !== id)
-    await db.transaction('rw', db.projects, db.columns, db.tasks, db.views, async () => {
+    this.notes = this.notes.filter((n) => n.projectId !== id)
+    this.noteSections = this.noteSections.filter((n) => n.projectId !== id)
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections], async () => {
       await db.projects.delete(id)
       await db.columns.where('projectId').equals(id).delete()
       await db.tasks.where('projectId').equals(id).delete()
       await db.views.where('projectId').equals(id).delete()
+      await db.notes.where('projectId').equals(id).delete()
+      await db.noteSections.where('projectId').equals(id).delete()
     })
     if (this.currentProjectId === id) this.selectProject(this.projects[0].id)
   }
@@ -633,6 +645,95 @@ class AppStore {
     this.currentProjectId = id
     this.setSetting('currentProjectId', id)
     this.loadView()
+  }
+
+  // ---------- notes (quaderno note) ----------
+  // Stato della finestra note (aperta/ridotta/ingrandita, posizione, dimensione), salvato come preferenza 'notesWin'. Letto e scritto da Notes.svelte, App.svelte e Sidebar.svelte.
+  get notesWin(): NotesWin {
+    return this.pref<NotesWin>('notesWin', { open: false, min: false, max: false, x: 80, y: 80, w: 760, h: 520, list: true, docked: false })
+  }
+  // Modifica parte dello stato della finestra note e lo salva.
+  setNotesWin(patch: Partial<NotesWin>) {
+    this.setPref('notesWin', { ...this.notesWin, ...patch })
+  }
+
+  // Sezioni della lista corrente, in ordine.
+  projectSections = $derived(
+    this.noteSections.filter((s) => s.projectId === this.currentProjectId).sort((a, b) => a.order - b.order),
+  )
+
+  // Pagine di una sezione, in ordine. Usata da Notes.svelte e dalle esportazioni.
+  sectionPages(sectionId: string) {
+    return this.notes.filter((n) => n.sectionId === sectionId).sort((a, b) => a.order - b.order)
+  }
+
+  // Crea una sezione in coda alla lista (con una prima pagina vuota, cosi' si puo' scrivere subito).
+  async addSection(projectId: string, name: string) {
+    const order = this.noteSections.filter((s) => s.projectId === projectId).length
+    const s: NoteSection = { id: uid(), projectId, name, order }
+    this.noteSections.push(s)
+    await db.noteSections.put(plain(s))
+    await this.addPage(s.id)
+    return s
+  }
+
+  // Rinomina una sezione.
+  async renameSection(id: string, name: string) {
+    const s = this.noteSections.find((x) => x.id === id)
+    if (!s || !name.trim()) return
+    s.name = name.trim()
+    await db.noteSections.put(plain(s))
+  }
+
+  // Elimina una sezione con tutte le sue pagine.
+  async deleteSection(id: string) {
+    this.noteSections = this.noteSections.filter((s) => s.id !== id)
+    this.notes = this.notes.filter((n) => n.sectionId !== id)
+    await db.transaction('rw', db.noteSections, db.notes, async () => {
+      await db.noteSections.delete(id)
+      await db.notes.where('sectionId').equals(id).delete()
+    })
+  }
+
+  // Aggiunge una pagina vuota in coda alla sezione.
+  async addPage(sectionId: string, title = '') {
+    const s = this.noteSections.find((x) => x.id === sectionId)
+    if (!s) throw new Error('Unknown section')
+    const now = Date.now()
+    const n: NotePage = {
+      id: uid(), projectId: s.projectId, sectionId, title, html: '',
+      order: this.notes.filter((p) => p.sectionId === sectionId).length, createdAt: now, updatedAt: now,
+    }
+    this.notes.push(n)
+    await db.notes.put(plain(n))
+    return n
+  }
+
+  // Modifica titolo e/o contenuto (caselle) di una pagina (il contenuto deve essere gia' sanitizzato).
+  async updatePage(id: string, patch: Partial<Pick<NotePage, 'title' | 'html' | 'boxes'>>) {
+    const n = this.notes.find((x) => x.id === id)
+    if (!n) return
+    Object.assign(n, patch, { updatedAt: Date.now() })
+    await db.notes.put(plain(n))
+  }
+
+  // Sposta una pagina di una posizione su/giu' dentro la sua sezione.
+  async movePage(id: string, dir: -1 | 1) {
+    const n = this.notes.find((x) => x.id === id)
+    if (!n) return
+    const list = this.sectionPages(n.sectionId)
+    const i = list.findIndex((p) => p.id === id)
+    const j = i + dir
+    if (j < 0 || j >= list.length) return
+    ;[list[i], list[j]] = [list[j], list[i]]
+    list.forEach((p, k) => (p.order = k))
+    await db.notes.bulkPut(plain(list))
+  }
+
+  // Elimina una pagina.
+  async deletePage(id: string) {
+    this.notes = this.notes.filter((n) => n.id !== id)
+    await db.notes.delete(id)
   }
 
   // ---------- columns ----------
