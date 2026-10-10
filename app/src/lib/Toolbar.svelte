@@ -31,7 +31,7 @@
     { key: 'subtasks', label: 'Subtasks' },
     { key: 'reminders', label: 'Reminders' },
     { key: 'description', label: 'Description' },
-    ...store.fields.filter((f) => f.projectId === store.currentProjectId).map((f) => ({ key: f.id, label: f.name })),
+    ...store.fields.map((f) => ({ key: f.id, label: f.name })),
   ])
 
   // Nasconde/mostra un campo nella bozza (checkbox di 'Hide fields').

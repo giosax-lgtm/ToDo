@@ -186,9 +186,13 @@ class AppStore {
     this.ready = true
   }
 
-  // Dati iniziali al primo avvio: lista 'Personal' con colonne e viste di default; i campi tag sono per-lista e non globali.
+  // Dati iniziali al primo avvio: lista 'Personal' con colonne e viste di default, due campi tag ('Project', 'Scope') con una scelta ciascuno.
   private async seed() {
     await this.addProject('Personal')
+    const fProject = await this.addField('Project')
+    const fScope = await this.addField('Scope')
+    await this.addOption(fProject.id, 'Other', 'brown')
+    await this.addOption(fScope.id, 'other', 'lime')
   }
 
   // ---------- cloud sync support ----------
@@ -382,7 +386,7 @@ class AppStore {
   // Chiavi usabili per filtrare/raggruppare/ordinare: quelle predefinite piu' un campo per ogni campo tag.
   /** Every key usable for filter / group by / sort. */
   get attributeKeys() {
-    return ['status', 'priority', 'due', 'completed', ...this.fields.filter((f) => f.projectId === this.currentProjectId).map((f) => f.id)]
+    return ['status', 'priority', 'due', 'completed', ...this.fields.map((f) => f.id)]
   }
 
   // Aggiunge alla bozza un filtro vuoto sull'attributo indicato (se non c'e' gia').
@@ -430,7 +434,7 @@ class AppStore {
   // ---------- groups ----------
   // Le scelte (tag) di un campo, in ordine. Usata da filtri, gruppi, ordinamento e TagPicker.svelte.
   fieldOptions(fieldId: string) {
-    return this.options.filter((o) => o.fieldId === fieldId && o.projectId === this.currentProjectId).sort((a, b) => a.order - b.order)
+    return this.options.filter((o) => o.fieldId === fieldId).sort((a, b) => a.order - b.order)
   }
 
   // Costruisce i gruppi da mostrare secondo il raggruppamento della bozza (nessuno, stato, priorita', completato, scadenza o campo tag), ciascuno con la funzione 'apply'
@@ -466,7 +470,7 @@ class AppStore {
     if (!f) return []
     const set = (t: Task, ids: string[]) => ({ tags: { ...t.tags, [key]: ids } })
     return [
-      ...this.options.filter((o) => o.fieldId === key && o.projectId === this.currentProjectId).sort((a, b) => a.order - b.order).map((o) => ({
+      ...this.fieldOptions(key).map((o) => ({
         key: o.id, label: o.label, color: o.color, editable: 'option' as const, apply: (t: Task) => set(t, [o.id]),
       })),
       { key: NONE, label: 'No ' + f.name, color: 'gray', editable: null, fixed: true, apply: (t: Task) => set(t, []) },
@@ -768,8 +772,8 @@ class AppStore {
 
   // ---------- fields & options ----------
   // Crea un nuovo campo tag (da CardDetail.svelte, 'new tag field').
-  async addField(name: string, projectId = this.currentProjectId) {
-    const f: Field = { id: uid(), projectId, name, order: this.fields.filter((x) => x.projectId === projectId).length }
+  async addField(name: string) {
+    const f: Field = { id: uid(), name, order: this.fields.length }
     this.fields.push(f)
     await db.fields.put(plain(f))
     return f
@@ -809,10 +813,10 @@ class AppStore {
   }
 
   // Aggiunge una scelta (tag) a un campo; senza colore ne assegna uno a rotazione da COLOR_KEYS. Da TagPicker.svelte o addGroup.
-  async addOption(fieldId: string, label: string, color?: string, projectId = this.currentProjectId) {
-    const n = this.options.filter((o) => o.fieldId === fieldId && o.projectId === projectId).length
+  async addOption(fieldId: string, label: string, color?: string) {
+    const n = this.options.filter((o) => o.fieldId === fieldId).length
     const o: FieldOption = {
-      id: uid(), projectId, fieldId, label, order: n, color: color ?? COLOR_KEYS[(n + 1) % COLOR_KEYS.length],
+      id: uid(), fieldId, label, order: n, color: color ?? COLOR_KEYS[(n + 1) % COLOR_KEYS.length],
     }
     this.options.push(o)
     await db.options.put(plain(o))

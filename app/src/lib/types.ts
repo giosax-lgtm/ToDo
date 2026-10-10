@@ -21,10 +21,9 @@ export interface Column {
 }
 
 // Un CAMPO TAG personalizzato (es. 'Project', 'Scope'). E' condiviso da tutte le liste; le sue scelte sono le FieldOption.
-/** A tag field such as "Project" or "Scope". Scoped to a specific list/project so each board can have different categories. */
+/** A tag field such as "Project" or "Scope". Shared by all lists. */
 export interface Field {
   id: string
-  projectId: string
   name: string
   order: number
 }
@@ -32,7 +31,6 @@ export interface Field {
 // Un singolo TAG selezionabile di un Field (etichetta + colore). Il task lo referenzia in Task.tags[fieldId].
 export interface FieldOption {
   id: string
-  projectId: string
   fieldId: string
   label: string
   color: string

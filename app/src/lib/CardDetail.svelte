@@ -161,7 +161,7 @@
       <input placeholder="Add subtask, Enter" bind:value={newSub} onkeydown={(e) => e.key === 'Enter' && addSub()} />
     </div>
 
-    {#each store.fields.filter((f) => f.projectId === store.currentProjectId) as f (f.id)}
+    {#each store.fields as f (f.id)}
       <div class="block"><TagPicker {task} field={f} /></div>
     {/each}
 

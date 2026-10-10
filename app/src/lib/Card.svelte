@@ -24,10 +24,10 @@
   const showSub = $derived(task.subtasks.length > 0 && !hidden.includes('subtasks'))
   const tagGroups = $derived(
     store.fields
-      .filter((f) => f.projectId === store.currentProjectId && !hidden.includes(f.id))
+      .filter((f) => !hidden.includes(f.id))
       .map((f) => ({
         field: f,
-        opts: (task.tags[f.id] ?? []).map((id) => store.options.find((o) => o.id === id && o.projectId === store.currentProjectId)).filter((o) => !!o),
+        opts: (task.tags[f.id] ?? []).map((id) => store.options.find((o) => o.id === id)).filter((o) => !!o),
       }))
       .filter((g) => g.opts.length),
   )
