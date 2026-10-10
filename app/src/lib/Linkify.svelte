@@ -6,12 +6,43 @@
 <script lang="ts">
   let { text }: { text: string } = $props()
 
-  // Espressione regolare degli URL; esclude la punteggiatura finale. La cattura permette a split() di lasciare gli URL agli indici dispari.
+  // Riconosce URL normali e immagini markdown del tipo ![alt](https://...) o ![alt](data:image/...;base64,...).
   const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g
+  const TOKEN_RE = /!\[[^\]]*\]\((?:data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s)]+)\)|https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]*/g
 
-  // Il testo spezzato in parti: indici pari = testo normale, dispari = URL (disegnati come <a>).
-  // split() with a capture group puts the URLs at odd indexes
-  const parts = $derived(text.split(URL_RE))
+  type Part =
+    | { kind: 'text'; value: string }
+    | { kind: 'link'; value: string }
+    | { kind: 'image'; value: string }
+
+  const parts = $derived.by(() => {
+    const out: Part[] = []
+    let last = 0
+
+    for (const match of text.matchAll(TOKEN_RE)) {
+      const start = match.index ?? 0
+      const value = match[0]
+      if (start > last) out.push({ kind: 'text', value: text.slice(last, start) })
+      if (value.startsWith('![')) {
+        const src = value.match(/\((.*)\)$/)?.[1] ?? ''
+        out.push({ kind: 'image', value: src })
+      } else {
+        out.push({ kind: 'link', value: value.replace(URL_RE, '$1') })
+      }
+      last = start + value.length
+    }
+
+    if (last < text.length) out.push({ kind: 'text', value: text.slice(last) })
+    return out
+  })
 </script>
 
-{#each parts as p, i}{#if i % 2}<a href={p} target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()}>{p}</a>{:else}{p}{/if}{/each}
+{#each parts as part}
+  {#if part.kind === 'link'}
+    <a href={part.value} target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()}>{part.value}</a>
+  {:else if part.kind === 'image'}
+    <img src={part.value} alt="Attachment" onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')} />
+  {:else}
+    {part.value}
+  {/if}
+{/each}

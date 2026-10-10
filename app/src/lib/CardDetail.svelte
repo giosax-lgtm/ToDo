@@ -17,9 +17,52 @@
   // Testo digitato per un nuovo sottotask e per un nuovo campo tag.
   let newSub = $state('')
   let newField = $state('')
+  let imageInput: HTMLInputElement | undefined
 
   // Scorciatoia: applica una modifica parziale al task aperto (store.updateTask).
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p)
+
+  function readDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader()
+      fr.onload = () => resolve(String(fr.result ?? ''))
+      fr.onerror = () => reject(new Error('Could not read image'))
+      fr.readAsDataURL(file)
+    })
+  }
+
+  async function attachImages(files: FileList | File[] | null | undefined) {
+    const images = Array.from(files ?? []).filter((f) => f.type.startsWith('image/'))
+    if (!images.length) return
+
+    const chunks = await Promise.all(images.map(async (file) => {
+      const src = await readDataUrl(file)
+      const name = (file.name || 'screenshot').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9 _-]/g, '') || 'screenshot'
+      return `\n\n![${name}](${src})`
+    }))
+
+    const base = task.description.trim()
+    const next = base ? `${base}${chunks.join('')}` : chunks.join('').trimStart()
+    patch({ description: next })
+    if (imageInput) imageInput.value = ''
+  }
+
+  function onPasteImage(e: ClipboardEvent) {
+    const files = e.clipboardData?.files
+    if (files && Array.from(files).some((f) => f.type.startsWith('image/'))) {
+      e.preventDefault()
+      void attachImages(files)
+    }
+  }
+
+  function onDropImages(e: DragEvent) {
+    if (!e.dataTransfer?.files.length) return
+    const fileList = e.dataTransfer.files
+    if (Array.from(fileList).some((f) => f.type.startsWith('image/'))) {
+      e.preventDefault()
+      void attachImages(fileList)
+    }
+  }
 
   // Aggiunge un sottotask con il testo digitato (Invio nel campo).
   function addSub() {
@@ -70,10 +113,15 @@
 
     <Reminders {task} />
 
-    <label class="block">Description
-      <textarea rows="4" value={task.description} onchange={(e) => patch({ description: e.currentTarget.value })}></textarea>
+    <label class="block">
+      <span class="label-row">
+        <span>Description</span>
+        <button class="mini" type="button" onclick={() => imageInput?.click()}>📎 Add image</button>
+      </span>
+      <input type="file" accept="image/*" multiple hidden bind:this={imageInput} onchange={(e) => void attachImages((e.currentTarget as HTMLInputElement).files)} />
+      <textarea rows="4" value={task.description} onpaste={onPasteImage} ondrop={onDropImages} ondragover={(e) => e.preventDefault()} onchange={(e) => patch({ description: e.currentTarget.value })}></textarea>
     </label>
-    {#if /https?:\/\//.test(task.description)}
+    {#if /https?:\/\/|!\[[^\]]*\]\((?:data:image|https?:\/\/)/.test(task.description)}
       <div class="block desc-links"><Linkify text={task.description} /></div>
     {/if}
 

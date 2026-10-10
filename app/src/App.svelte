@@ -41,7 +41,7 @@
   // Effetto: calcola il tema effettivo (light | dark | claude) dalla preferenza 'theme' e lo scrive in <html data-theme>.
   // I colori veri sono definiti in app.css tramite il selettore [data-theme=...].
   $effect(() => {
-    const t = store.pref('theme', 'system')
+    const t = store.pref('theme', 'system') as string
     document.documentElement.dataset.theme = t === 'claude' ? 'claude' : t === 'dark' || (t === 'system' && systemDark) ? 'dark' : 'light'
   })
 
