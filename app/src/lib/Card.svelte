@@ -23,7 +23,7 @@
   const showRem = $derived(!!nextRem && !hidden.includes('reminders'))
   const showSub = $derived(task.subtasks.length > 0 && !hidden.includes('subtasks'))
   const tagGroups = $derived(
-    store.fields
+    store.fieldsOf()
       .filter((f) => !hidden.includes(f.id))
       .map((f) => ({
         field: f,

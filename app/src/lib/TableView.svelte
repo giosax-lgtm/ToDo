@@ -23,7 +23,7 @@
     ...(hidden.includes('status') ? [] : [{ key: 'status', label: 'Status' }]),
     ...(hidden.includes('priority') ? [] : [{ key: 'priority', label: 'Priority' }]),
     ...(hidden.includes('due') ? [] : [{ key: 'due', label: 'Due date' }]),
-    ...store.fields.filter((f) => !hidden.includes(f.id)).map((f) => ({ key: f.id, label: f.name })),
+    ...store.fieldsOf().filter((f) => !hidden.includes(f.id)).map((f) => ({ key: f.id, label: f.name })),
   ])
   // Valore CSS grid-template-columns per intestazione e righe, calcolato dal numero di colonne.
   const template = $derived(`32px minmax(240px, 3fr) repeat(${cols.length}, minmax(120px, 1fr))`)

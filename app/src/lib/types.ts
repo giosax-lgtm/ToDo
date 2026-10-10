@@ -20,10 +20,11 @@ export interface Column {
   order: number
 }
 
-// Un CAMPO TAG personalizzato (es. 'Project', 'Scope'). E' condiviso da tutte le liste; le sue scelte sono le FieldOption.
-/** A tag field such as "Project" or "Scope". Shared by all lists. */
+// Un CAMPO TAG personalizzato (es. 'Project', 'Scope'). Appartiene a una sola lista (projectId); le sue scelte sono le FieldOption.
+/** A tag field such as "Project" or "Scope". Belongs to one list (projectId); legacy global fields have none until migrated. */
 export interface Field {
   id: string
+  projectId?: string
   name: string
   order: number
 }

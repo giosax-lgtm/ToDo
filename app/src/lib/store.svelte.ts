@@ -8,7 +8,7 @@
 import { SvelteMap } from 'svelte/reactivity'
 import { db } from './db'
 import { COLOR_KEYS } from './colors'
-import type { Column, Field, FieldOption, Group, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Task, View, ViewFilter } from './types'
+import type { Column, Field, FieldOption, Group, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Task, View, ViewFilter, ViewSort } from './types'
 
 // Genera un id univoco (UUID) per nuove entita'.
 const uid = () => crypto.randomUUID()
@@ -179,6 +179,7 @@ class AppStore {
     settings.forEach((s) => !s.key.startsWith('x:') && this.settings.set(s.key, s.value)) // x: = sync internals
     await this.loadTables()
     if (!this.projects.length) await this.seed()
+    await this.migrateFieldsPerProject()
     for (const p of this.projects) if (!this.views.some((v) => v.projectId === p.id)) await this.seedViews(p.id)
     const lastId = this.settings.get('currentProjectId') as string | undefined
     this.currentProjectId = this.projects.some((p) => p.id === lastId) ? lastId! : this.projects[0].id
@@ -188,11 +189,66 @@ class AppStore {
 
   // Dati iniziali al primo avvio: lista 'Personal' con colonne e viste di default, due campi tag ('Project', 'Scope') con una scelta ciascuno.
   private async seed() {
-    await this.addProject('Personal')
-    const fProject = await this.addField('Project')
-    const fScope = await this.addField('Scope')
+    const p = await this.addProject('Personal')
+    const fProject = await this.addField('Project', p.id)
+    const fScope = await this.addField('Scope', p.id)
     await this.addOption(fProject.id, 'Other', 'brown')
     await this.addOption(fScope.id, 'other', 'lime')
+  }
+
+  // Migrazione una tantum: i campi tag nati globali (senza projectId) vengono copiati in ogni lista, con le loro scelte; i tag dei task, i filtri/raggruppamenti/ordinamenti/campi nascosti delle viste e le bozze di ogni lista vengono riallacciati alle copie. Il primo progetto tiene gli id originali.
+  private async migrateFieldsPerProject() {
+    const legacy = this.fields.filter((f) => !f.projectId)
+    if (!legacy.length || !this.projects.length) return
+    const [first, ...others] = this.projects
+    const newFields: Field[] = []
+    const newOptions: FieldOption[] = []
+    const dirtyTasks = new Set<Task>()
+    const dirtyViews = new Set<View>()
+    const remapView = (v: { filters: ViewFilter[]; hidden: string[]; groupBy: string; sort: ViewSort | null }, fmap: Map<string, string>, omap: Map<string, string>) => {
+      for (const f of v.filters) { f.key = fmap.get(f.key) ?? f.key; f.values = f.values.map((x) => omap.get(x) ?? x) }
+      v.hidden = v.hidden.map((h) => fmap.get(h) ?? h)
+      v.groupBy = fmap.get(v.groupBy) ?? v.groupBy
+      if (v.sort) v.sort.key = fmap.get(v.sort.key) ?? v.sort.key
+    }
+    for (const f of legacy) {
+      f.projectId = first.id
+      newFields.push(f)
+      const opts = this.options.filter((o) => o.fieldId === f.id)
+      for (const p of others) {
+        const copy: Field = { id: uid(), projectId: p.id, name: f.name, order: f.order }
+        newFields.push(copy)
+        this.fields.push(copy)
+        const omap = new Map<string, string>()
+        for (const o of opts) {
+          const oc: FieldOption = { ...o, id: uid(), fieldId: copy.id }
+          omap.set(o.id, oc.id)
+          newOptions.push(oc)
+          this.options.push(oc)
+        }
+        const fmap = new Map([[f.id, copy.id]])
+        for (const t of this.tasks) {
+          if (t.projectId !== p.id || !(f.id in t.tags)) continue
+          t.tags[copy.id] = t.tags[f.id].map((x) => omap.get(x) ?? x)
+          delete t.tags[f.id]
+          dirtyTasks.add(t)
+        }
+        for (const v of this.views) if (v.projectId === p.id) { remapView(v, fmap, omap); dirtyViews.add(v) }
+        const draft = this.settings.get('draft:' + p.id) as View | undefined
+        if (draft) { remapView(draft, fmap, omap); this.setSetting('draft:' + p.id, draft) }
+      }
+    }
+    await db.transaction('rw', db.fields, db.options, db.tasks, db.views, async () => {
+      await db.fields.bulkPut(plain(newFields))
+      await db.options.bulkPut(plain(newOptions))
+      await db.tasks.bulkPut(plain([...dirtyTasks]))
+      await db.views.bulkPut(plain([...dirtyViews]))
+    })
+  }
+
+  // Campi tag della lista indicata (default: quella corrente), in ordine.
+  fieldsOf(projectId = this.currentProjectId) {
+    return this.fields.filter((f) => f.projectId === projectId)
   }
 
   // ---------- cloud sync support ----------
@@ -386,7 +442,7 @@ class AppStore {
   // Chiavi usabili per filtrare/raggruppare/ordinare: quelle predefinite piu' un campo per ogni campo tag.
   /** Every key usable for filter / group by / sort. */
   get attributeKeys() {
-    return ['status', 'priority', 'due', 'completed', ...this.fields.map((f) => f.id)]
+    return ['status', 'priority', 'due', 'completed', ...this.fieldsOf().map((f) => f.id)]
   }
 
   // Aggiunge alla bozza un filtro vuoto sull'attributo indicato (se non c'e' gia').
@@ -772,8 +828,8 @@ class AppStore {
 
   // ---------- fields & options ----------
   // Crea un nuovo campo tag (da CardDetail.svelte, 'new tag field').
-  async addField(name: string) {
-    const f: Field = { id: uid(), name, order: this.fields.length }
+  async addField(name: string, projectId = this.currentProjectId) {
+    const f: Field = { id: uid(), projectId, name, order: this.fieldsOf(projectId).length }
     this.fields.push(f)
     await db.fields.put(plain(f))
     return f
