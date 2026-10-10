@@ -254,6 +254,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .side-btn.sync.ok .dot { background: #2eb67d; box-shadow: 0 0 0 3px rgba(46,182,125,.25); }
 .side-btn.sync.warn .dot { background: #ecb22e; box-shadow: 0 0 0 3px rgba(236,178,46,.3); }
 .side-btn.sync.warn { color: #ffd479; }
+.side-version { color: var(--muted); font-size: 0.72rem; text-align: center; opacity: 0.8; padding-top: 0.3rem; }
 
 /* ---- theme ---- */
 :root {

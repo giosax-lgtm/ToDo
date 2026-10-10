@@ -73,5 +73,6 @@
     </button>
     <button class="side-btn" onclick={() => { store.setNotesWin({ open: true, min: false }); open = false }}>📝 Notes</button>
     <button class="side-btn" onclick={() => (store.settingsOpen = true)}>⚙ Settings</button>
+    <div class="side-version">v{__APP_VERSION__}</div>
   </div>
 </nav>

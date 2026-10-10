@@ -6,10 +6,6 @@
 <script lang="ts">
   let { text }: { text: string } = $props()
 
-  // Riconosce URL normali e immagini markdown del tipo ![alt](https://...) o ![alt](data:image/...;base64,...).
-  const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g
-  const TOKEN_RE = /!\[[^\]]*\]\((?:data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s)]+)\)|https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]*/g
-
   type Part =
     | { kind: 'text'; value: string }
     | { kind: 'link'; value: string }
@@ -17,22 +13,26 @@
 
   const parts = $derived.by(() => {
     const out: Part[] = []
-    let last = 0
+    let cursor = 0
+    const re = /!\[[^\]]*\]\((?:data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s)]+)\)|https?:\/\/[^\s<>'")\]]+/gi
 
-    for (const match of text.matchAll(TOKEN_RE)) {
+    for (const match of text.matchAll(re)) {
       const start = match.index ?? 0
       const value = match[0]
-      if (start > last) out.push({ kind: 'text', value: text.slice(last, start) })
+      if (start > cursor) out.push({ kind: 'text', value: text.slice(cursor, start) })
+
       if (value.startsWith('![')) {
-        const src = value.match(/\((.*)\)$/)?.[1] ?? ''
-        out.push({ kind: 'image', value: src })
+        const src = value.slice(value.indexOf('(') + 1, value.lastIndexOf(')'))
+        if (src) out.push({ kind: 'image', value: src })
+        else out.push({ kind: 'text', value: value })
       } else {
-        out.push({ kind: 'link', value: value.replace(URL_RE, '$1') })
+        out.push({ kind: 'link', value: value })
       }
-      last = start + value.length
+
+      cursor = start + value.length
     }
 
-    if (last < text.length) out.push({ kind: 'text', value: text.slice(last) })
+    if (cursor < text.length) out.push({ kind: 'text', value: text.slice(cursor) })
     return out
   })
 </script>
