@@ -15,6 +15,7 @@
   // Valori derivati per il disegno: campi nascosti, sottotask completati, scadenza superata, prossimo reminder non scattato e tag raggruppati per campo.
   const hidden = $derived(store.draft.hidden)
   const subDone = $derived(task.subtasks.filter((s) => s.done).length)
+  const subProgress = $derived(task.subtasks.length ? Math.round((subDone / task.subtasks.length) * 100) : 0)
   const overdue = $derived(!!task.due && !task.done && task.due < new Date().toISOString().slice(0, 10))
   const showPriority = $derived(!!task.priority && !hidden.includes('priority'))
   const showDue = $derived(!!task.due && !hidden.includes('due'))
@@ -23,10 +24,10 @@
   const showSub = $derived(task.subtasks.length > 0 && !hidden.includes('subtasks'))
   const tagGroups = $derived(
     store.fields
-      .filter((f) => !hidden.includes(f.id))
+      .filter((f) => f.projectId === store.currentProjectId && !hidden.includes(f.id))
       .map((f) => ({
         field: f,
-        opts: (task.tags[f.id] ?? []).map((id) => store.options.find((o) => o.id === id)).filter((o) => !!o),
+        opts: (task.tags[f.id] ?? []).map((id) => store.options.find((o) => o.id === id && o.projectId === store.currentProjectId)).filter((o) => !!o),
       }))
       .filter((g) => g.opts.length),
   )
@@ -45,9 +46,14 @@
   {#if showPriority || showDue || showSub || showRem}
     <div class="meta">
       {#if showPriority}<span class="stars">{'★'.repeat(task.priority)}</span>{/if}
-      {#if showSub}<span>☑ {subDone}/{task.subtasks.length}</span>{/if}
+      {#if showSub}<span>☑ {subDone}/{task.subtasks.length} · {subProgress}%</span>{/if}
       {#if showRem}<span title="Next reminder">🔔 {nextRem.replace('T', ' ')}</span>{/if}
       {#if showDue}<span class:overdue>📅 {task.due}</span>{/if}
+    </div>
+  {/if}
+  {#if showSub}
+    <div class="sub-progress" aria-label="Subtasks progress">
+      <span class="sub-progress-fill" style:width="{subProgress}%"></span>
     </div>
   {/if}
   {#if task.description && !hidden.includes('description')}

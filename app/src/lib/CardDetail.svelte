@@ -64,6 +64,18 @@
     }
   }
 
+  // Nella textarea le immagini incorporate (data:image base64) sono mostrate come "image:N"
+  // per non riempire il campo di codice; al salvataggio il segnaposto torna al data URI originale.
+  const DATA_IMG = /\(data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+\)/g
+  const shortenImages = (s: string) => {
+    let n = 0
+    return s.replace(DATA_IMG, () => `(image:${++n})`)
+  }
+  const restoreImages = (s: string) => {
+    const originals = task.description.match(DATA_IMG) ?? []
+    return s.replace(/\(image:(\d+)\)/g, (m, i) => originals[Number(i) - 1] ?? m)
+  }
+
   // Aggiunge un sottotask con il testo digitato (Invio nel campo).
   function addSub() {
     const text = newSub.trim()
@@ -76,6 +88,9 @@
   function setSub(id: string, p: { done?: boolean }) {
     patch({ subtasks: task.subtasks.map((s) => (s.id === id ? { ...s, ...p } : s)) })
   }
+
+  const subDone = $derived(task.subtasks.filter((s) => s.done).length)
+  const subProgress = $derived(task.subtasks.length ? Math.round((subDone / task.subtasks.length) * 100) : 0)
 
   // Chiude il pannello (store.openTaskId = null): Esc, click sullo sfondo o pulsante X.
   function close() { store.openTaskId = null }
@@ -119,7 +134,7 @@
         <button class="mini" type="button" onclick={() => imageInput?.click()}>📎 Add image</button>
       </span>
       <input type="file" accept="image/*" multiple hidden bind:this={imageInput} onchange={(e) => void attachImages((e.currentTarget as HTMLInputElement).files)} />
-      <textarea rows="4" value={task.description} onpaste={onPasteImage} ondrop={onDropImages} ondragover={(e) => e.preventDefault()} onchange={(e) => patch({ description: e.currentTarget.value })}></textarea>
+      <textarea rows="4" value={shortenImages(task.description)} onpaste={onPasteImage} ondrop={onDropImages} ondragover={(e) => e.preventDefault()} onchange={(e) => patch({ description: restoreImages(e.currentTarget.value) })}></textarea>
     </label>
     {#if /https?:\/\/|!\[[^\]]*\]\((?:data:image|https?:\/\/)/.test(task.description)}
       <div class="block desc-links"><Linkify text={task.description} /></div>
@@ -127,8 +142,17 @@
 
     <div class="block">
       <span class="lbl">Subtasks</span>
+      {#if task.subtasks.length}
+        <div class="sub-summary-row">
+          <span>{subDone}/{task.subtasks.length} completed</span>
+          <strong>{subProgress}%</strong>
+        </div>
+        <div class="sub-progress" aria-label="Subtasks progress">
+          <span class="sub-progress-fill" style:width="{subProgress}%"></span>
+        </div>
+      {/if}
       {#each task.subtasks as s (s.id)}
-        <div class="sub">
+        <div class="sub-row">
           <input type="checkbox" checked={s.done} onchange={(e) => setSub(s.id, { done: e.currentTarget.checked })} />
           <span class:struck={s.done}><Linkify text={s.text} /></span>
           <button class="icon" aria-label="Remove subtask" onclick={() => patch({ subtasks: task.subtasks.filter((x) => x.id !== s.id) })}>✕</button>
@@ -137,7 +161,7 @@
       <input placeholder="Add subtask, Enter" bind:value={newSub} onkeydown={(e) => e.key === 'Enter' && addSub()} />
     </div>
 
-    {#each store.fields as f (f.id)}
+    {#each store.fields.filter((f) => f.projectId === store.currentProjectId) as f (f.id)}
       <div class="block"><TagPicker {task} field={f} /></div>
     {/each}
 

@@ -11,7 +11,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   base: './',
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? 'dev'),
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '1.0.1'),
   },
   plugins: [
     svelte(),
