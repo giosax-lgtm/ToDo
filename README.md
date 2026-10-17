@@ -40,3 +40,6 @@ Succede quando nel browser c'è solo il token di accesso (dura 1 ora) e manca il
 3. Rimedio: **Disconnect → Connect** e accettare il consenso. Se compare *"Google gave no long-lived login"*, rimuovere "toDo" da <https://myaccount.google.com/permissions> e ripetere.
 4. Rifarlo **su ogni dispositivo** (il refresh token vive nel `localStorage` di quel browser). Una PWA installata ha spesso storage separato dal browser: login anche lì.
 5. Se il token sparisce dopo ~7 giorni: l'app Google è in stato "Test". In Google Cloud Console → OAuth consent screen passarla a **In produzione**.
+
+## Cloudflare (Worker di login)
+Account Cloudflare: **giosax**. Il Worker si chiama `todo-auth`, quindi l'indirizzo da incollare in Settings → Sign-in server dovrebbe essere `https://todo-auth.giosax.workers.dev` (se non funziona, `npx wrangler deploy` dalla cartella `worker/` stampa quello esatto). Codice e configurazione in `worker/`.
