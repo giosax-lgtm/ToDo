@@ -475,6 +475,7 @@ class AppStore {
   // True se un task e' visibile con la bozza corrente: completati nascosti se non richiesti, ricerca nel titolo/descrizione e tutti i filtri. Usata da groupTasks e moveTask.
   matches(t: Task) {
     const v = this.draft
+    if (t.projectId !== this.currentProjectId) return false
     if (!v.showCompleted && t.done) return false
     const s = v.search.trim().toLowerCase()
     if (s && !(t.title + ' ' + t.description).toLowerCase().includes(s)) return false
@@ -586,7 +587,7 @@ class AppStore {
       await db.tasks.put(plain(t))
       return
     }
-    const members = this.tasks.filter((x) => x.id !== id && this.groupKeys(x).includes(g.key))
+    const members = this.tasks.filter((x) => x.id !== id && x.projectId === t.projectId && this.groupKeys(x).includes(g.key))
     const visible = members.filter((x) => this.matches(x)).sort((a, b) => a.order - b.order)
     const hidden = members.filter((x) => !this.matches(x)).sort((a, b) => a.order - b.order)
     visible.splice(index, 0, t)

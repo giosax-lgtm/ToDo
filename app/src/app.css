@@ -141,6 +141,9 @@ textarea { resize: vertical; }
   .board { padding: 0.5714rem 0.8571rem 1.7143rem; scroll-snap-type: x proximity; }
   .column { width: 85vw; scroll-snap-align: start; }
   .grid { grid-template-columns: 1fr 1fr; }
+  /* >=16px evita lo zoom automatico di iOS sui campi e rende il testo piu' leggibile */
+  input, select, textarea, .mini { font-size: max(16px, 1em); }
+  .pill { font-size: calc(0.9286rem * var(--ts, 1)); padding: 3px 0.7143rem; }
 }
 
 /* ---- phase 2 ---- */

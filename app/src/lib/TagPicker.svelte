@@ -28,13 +28,19 @@
   }
 
   // Crea una nuova scelta nel campo e la seleziona subito per il task (Invio nel campo '+ new tag').
+  let creating = false
   async function create() {
     const label = draftNew.trim()
-    if (!label) return
-    const o = await store.addOption(field.id, label)
+    if (!label || creating) return
+    creating = true
     draftNew = ''
-    // newly created tag is selected right away
-    store.updateTask(task.id, { tags: { ...task.tags, [field.id]: [...selected, o.id] } })
+    try {
+      const o = await store.addOption(field.id, label)
+      // newly created tag is selected right away (stato riletto dopo l'await)
+      store.updateTask(task.id, { tags: { ...task.tags, [field.id]: [...(task.tags[field.id] ?? []), o.id] } })
+    } finally {
+      creating = false
+    }
   }
 </script>
 
@@ -72,6 +78,8 @@
         </span>
       {/if}
     {/each}
-    <input class="mini" placeholder="+ new tag" bind:value={draftNew} onkeydown={(e) => e.key === 'Enter' && create()} />
+    <input class="mini" placeholder="+ new tag" enterkeyhint="done" bind:value={draftNew}
+      onkeydown={(e) => (e.key === 'Enter' || e.keyCode === 13) && (e.preventDefault(), create())}
+      onchange={create} />
   </div>
 </div>

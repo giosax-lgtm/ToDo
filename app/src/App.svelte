@@ -48,7 +48,9 @@
   // Effetto: traduce le preferenze di aspetto (uiScale, textScale, colW, font) in font-size e variabili CSS (--ts, --col-w, --font) usate da app.css.
   $effect(() => {
     const r = document.documentElement
-    r.style.fontSize = (14 * store.pref('uiScale', 100)) / 100 + 'px'
+    // su mobile base 16px (invece di 14) per testo piu' leggibile
+    const base = window.matchMedia('(max-width: 760px)').matches ? 16 : 14
+    r.style.fontSize = (base * store.pref('uiScale', 100)) / 100 + 'px'
     r.style.setProperty('--ts', String(store.pref('textScale', 100) / 100))
     r.style.setProperty('--col-w', store.pref('colW', 290) / 14 + 'rem')
     r.style.setProperty('--font', store.pref('font', 'Lato, "Segoe UI", system-ui, sans-serif'))
