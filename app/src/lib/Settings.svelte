@@ -247,6 +247,7 @@
 
       <div class="gstatus {cloud.status}">
         {#if cloud.status === 'ok'}✓ Sync active · last sync {ago(cloud.lastSync)}
+          <br /><small>{store.projects.length} lists · {store.tasks.length} items · {store.fields.length} tag fields ({store.fields.filter((f) => !f.projectId).length} unassigned) · {store.options.length} tags</small>
         {:else if cloud.status === 'syncing'}Syncing…
         {:else if cloud.status === 'locked'}Locked — enter the passphrase
         {:else if cloud.status === 'error'}⚠ {cloud.message}
