@@ -32,3 +32,11 @@ npm run serve    # build + anteprima su http://localhost:4173
 
 ## Installazione e deploy
 Vedi [SETUP.md](SETUP.md) (uso sul PC, pubblicazione online e installazione su Android).
+
+## Risoluzione problemi: Google chiede sempre di riconnettersi
+Succede quando nel browser c'è solo il token di accesso (dura 1 ora) e manca il refresh token. Come verificare:
+1. **Settings → Sign-in server** deve contenere l'URL del Worker (vedi [SETUP.md](SETUP.md), C3). Aprire l'URL a mano dà `Forbidden` (403): è normale, il Worker risponde solo all'app.
+2. **F12 → Application → Local storage → `https://giosax-lgtm.github.io`**: deve esserci `todo.grefresh` (refresh token) oltre a `todo.gtoken` (access token). Se manca, il login è stato fatto prima del Worker o Google non ha dato il token di lunga durata.
+3. Rimedio: **Disconnect → Connect** e accettare il consenso. Se compare *"Google gave no long-lived login"*, rimuovere "toDo" da <https://myaccount.google.com/permissions> e ripetere.
+4. Rifarlo **su ogni dispositivo** (il refresh token vive nel `localStorage` di quel browser). Una PWA installata ha spesso storage separato dal browser: login anche lì.
+5. Se il token sparisce dopo ~7 giorni: l'app Google è in stato "Test". In Google Cloud Console → OAuth consent screen passarla a **In produzione**.
