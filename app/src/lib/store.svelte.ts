@@ -196,7 +196,7 @@ class AppStore {
     await this.addOption(fScope.id, 'other', 'lime')
   }
 
-  // Migrazione una tantum: i campi tag nati globali (senza projectId) vengono copiati in ogni lista, con le loro scelte; i tag dei task, i filtri/raggruppamenti/ordinamenti/campi nascosti delle viste e le bozze di ogni lista vengono riallacciati alle copie. Il primo progetto tiene gli id originali.
+  // Migrazione una tantum: i campi tag nati globali (senza projectId) vengono copiati in ogni lista, con le loro scelte; i tag dei task, i filtri/raggruppamenti/ordinamenti/campi nascosti delle viste e le bozze di ogni lista vengono riallacciati alle copie. Il primo progetto tiene gli id originali; le copie hanno id deterministici (id~lista) cosi' dispositivi diversi producono gli stessi record.
   private async migrateFieldsPerProject() {
     const legacy = this.fields.filter((f) => !f.projectId)
     if (!legacy.length || !this.projects.length) return
@@ -216,12 +216,12 @@ class AppStore {
       newFields.push(f)
       const opts = this.options.filter((o) => o.fieldId === f.id)
       for (const p of others) {
-        const copy: Field = { id: uid(), projectId: p.id, name: f.name, order: f.order }
+        const copy: Field = { id: `${f.id}~${p.id}`, projectId: p.id, name: f.name, order: f.order }
         newFields.push(copy)
         this.fields.push(copy)
         const omap = new Map<string, string>()
         for (const o of opts) {
-          const oc: FieldOption = { ...o, id: uid(), fieldId: copy.id }
+          const oc: FieldOption = { ...o, id: `${o.id}~${p.id}`, fieldId: copy.id }
           omap.set(o.id, oc.id)
           newOptions.push(oc)
           this.options.push(oc)
@@ -286,6 +286,7 @@ class AppStore {
       for (const [t, rows] of Object.entries(put)) await (tables as Record<string, { bulkPut(r: unknown[]): Promise<unknown> }>)[t].bulkPut(rows)
     })
     await this.loadTables()
+    await this.migrateFieldsPerProject() // dati vecchi (campi senza lista) arrivati dalla sync
     for (const p of this.projects) if (!this.views.some((v) => v.projectId === p.id)) await this.seedViews(p.id)
     if (!this.projects.some((p) => p.id === this.currentProjectId)) this.currentProjectId = this.projects[0]?.id ?? ''
     if (this.currentProjectId) this.loadView()
