@@ -22,9 +22,12 @@
   import Notes from './lib/Notes.svelte'
   import { gcal } from './lib/gcal.svelte'
   import { cloud } from './lib/cloud.svelte'
-  import { hasValidToken } from './lib/google'
+  import { hasSession, setAuthEndpoint } from './lib/google'
 
   let sidebarOpen = $state(false)
+
+  // Effetto: passa a lib/google.ts l'indirizzo del Worker di autenticazione (Settings -> 'Sign-in server'), che abilita il login duraturo.
+  $effect(() => setAuthEndpoint(store.pref('gAuthUrl', '') as string))
 
   // Media query del sistema operativo per il tema scuro; 'systemDark' tiene traccia del valore corrente.
   // Serve all'effetto del tema piu' sotto quando la preferenza 'theme' e' 'system'.
@@ -82,6 +85,7 @@
     // ask the browser not to evict our data when the disk is low
     void navigator.storage?.persist?.()
     store.init().then(async () => {
+      setAuthEndpoint(store.pref('gAuthUrl', '') as string) // before gcal.init/ensureAuth, which check for a renewable session
       gcal.init()
       await cloud.init()
       store.checkReminders()
@@ -92,7 +96,7 @@
     // Ogni 20 s: controlla i reminder scaduti (store.checkReminders) e aggiorna il flag 'authNeeded' (il token Google dura 1 ora).
     const tick = setInterval(() => {
       if (!store.ready) return
-      cloud.authNeeded = (cloud.enabled || gcal.connected) && !hasValidToken() // token expires after 1 h
+      cloud.authNeeded = (cloud.enabled || gcal.connected) && !hasSession() // access token lasts 1 h; with the sign-in server it renews itself
       store.checkReminders()
     }, 20000)
     // Ogni 60 s, se la scheda e' visibile: sync periodica (utile per le frequenze a intervallo e per scaricare le modifiche di altri dispositivi).
@@ -110,7 +114,7 @@
     // Al primo click dopo la scadenza del token Google: riottiene il token (popup breve, consentito perche' scatenato da un gesto dell'utente)
     // e poi risincronizza Drive e Calendar. Al massimo un tentativo ogni 2 minuti.
     const renew = () => {
-      if (!store.ready || !(cloud.enabled || gcal.connected) || hasValidToken()) return
+      if (!store.ready || !(cloud.enabled || gcal.connected) || hasSession()) return
       if (Date.now() - lastAuthTry < 120000) return
       lastAuthTry = Date.now()
       void cloud.ensureAuth(true).then((ok) => {

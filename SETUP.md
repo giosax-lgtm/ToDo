@@ -117,6 +117,25 @@ Apri l'URL pubblicato in Chrome/Edge e installa come in **A2** (stessi passi, ma
 4. **Altri dispositivi** (o stesso PC dopo una cancellazione dei dati): Client ID + stessa passphrase → *Unlock existing vault*. Un dispositivo vuoto scarica i dati dal cloud; se aveva già dati propri vengono uniti (meglio usare un dispositivo pulito).
 5. Il sync parte pochi secondi dopo ogni modifica, ogni minuto e all'apertura. Se due dispositivi modificano lo **stesso item** insieme, vince la modifica più recente.
 
+## C3. Login duraturo (facoltativo, consigliato): non dover rifare il login ogni ora
+Senza questo passo il token Google dura 1 ora e va rinnovato con un popup. Con un piccolo **Worker Cloudflare gratuito** (cartella `worker/`) fai il login **una volta** e l'app si rinnova da sola, su PC e telefono. Il Worker custodisce il *client secret* e non salva né vede i tuoi dati.
+1. In Google Cloud Console → **Credenziali** → apri il tuo ID client OAuth e copia il **Client secret** (qui, a differenza di C1, serve).
+2. Account Cloudflare gratuito. Poi da terminale:
+   ```
+   cd worker
+   npx wrangler login
+   ```
+3. Apri `worker/wrangler.toml` e imposta `GOOGLE_CLIENT_ID` e `ALLOWED_ORIGINS` (le stesse origini di C1, es. `https://utente.github.io,http://localhost:4173`).
+4. Carica il secret e pubblica:
+   ```
+   npx wrangler secret put GOOGLE_CLIENT_SECRET
+   npx wrangler deploy
+   ```
+   Il comando stampa l'indirizzo, es. `https://todo-auth.<tuo-nome>.workers.dev`.
+5. Nell'app: ⚙ Settings → Google Calendar → **Sign-in server** → incolla l'indirizzo. Poi **Disconnect** e **Connect** (su ogni dispositivo, una volta).
+6. Se dopo il Connect compare *"Google gave no long-lived login"*: Google non ripropone il consenso a chi ha già autorizzato l'app. Rimuovi "toDo" da <https://myaccount.google.com/permissions> e ripeti Connect.
+7. Il refresh token resta nel browser del dispositivo (come l'access token). Scade solo se lo revochi, cambi la password Google o l'app resta in stato "Test" (vedi C1: deve essere *In produzione*).
+
 ---
 
 # Git e GitHub: salvare le modifiche e tenere tutto sincronizzato
@@ -178,7 +197,7 @@ I task si recuperano con il sync cifrato (C2, punto 4) o con un file di backup.
 Puoi usare `localhost` sul PC e il sito pubblicato sul telefono: sono archivi separati, ma con lo stesso Client ID e la stessa passphrase il sync cifrato li allinea.
 
 # Note di sicurezza
-- Il token Google (scope minimi) dura 1 ora e resta nel browser solo fino alla scadenza, così un refresh non richiede un nuovo login. Quando scade, il primo clic o tocco nell'app lo rinnova con un breve popup di Google; in alternativa usa *Reconnect* in Settings.
+- Il token Google (scope minimi) dura 1 ora e resta nel browser solo fino alla scadenza, così un refresh non richiede un nuovo login. Senza il *Sign-in server* (C3), alla scadenza il primo clic o tocco nell'app lo rinnova con un breve popup di Google; in alternativa usa *Reconnect* in Settings. Con C3 attivo il rinnovo è silenzioso: nel browser resta anche un *refresh token* (revocabile con Disconnect o da myaccount.google.com/permissions), che da solo non serve senza il client secret custodito nel Worker.
 - Scope minimo: l'app gestisce **solo il calendario che ha creato** e una cartella Drive nascosta riservata all'app.
 - Disconnettendo l'app, gli eventi già creati restano su Calendar (eliminali cancellando il calendario "To-Do Reminders").
 - **Cifratura**: dati compressi e cifrati con AES-256-GCM sul dispositivo prima di andare su Drive; la chiave è protetta dalla passphrase (PBKDF2-SHA256, 600.000 iterazioni) e da una recovery key casuale. Google vede solo file illeggibili.

@@ -5,7 +5,7 @@
 // Per non duplicare eventi tiene in 'gEvents' la firma dell'ultimo evento inviato per ogni reminder; invia solo le differenze (crea/aggiorna/elimina).
 
 import { store, toLocalInput } from './store.svelte'
-import { ALL_SCOPES, forgetToken, getToken, hasValidToken, revokeToken } from './google'
+import { ALL_SCOPES, forgetToken, getToken, hasSession, revokeToken } from './google'
 import { cloud } from './cloud.svelte'
 import type { Reminder, Task } from './types'
 
@@ -38,7 +38,7 @@ class GCal {
 
   // Chiamata da App.svelte all'avvio: imposta lo stato iniziale ('ok' se il token e' valido, 'reconnect' se serve il login, 'off' se non connesso).
   init() {
-    this.status = this.connected ? (hasValidToken() ? 'ok' : 'reconnect') : 'off'
+    this.status = this.connected ? (hasSession() ? 'ok' : 'reconnect') : 'off'
   }
 
   // Collega Google Calendar: ottiene il token con popup (da click), segna 'connesso' e sincronizza. Chiamata dai pulsanti Connect/Reconnect di Settings.svelte.

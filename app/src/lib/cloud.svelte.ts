@@ -7,7 +7,7 @@
 
 import { db } from './db'
 import { store } from './store.svelte'
-import { ALL_SCOPES, forgetToken, getToken, hasValidToken, loadGis } from './google'
+import { ALL_SCOPES, forgetToken, getToken, hasSession, hasValidToken, loadGis } from './google'
 import { listFiles, download, upload, type DriveFile } from './drive'
 import { createVault, decryptJson, encryptJson, openVault, type KeyFile } from './crypto'
 import { detectLocal, hashAll, mergeRemote, purgeTombstones, type BaseEnt, type FileState } from './merge'
@@ -90,6 +90,12 @@ class Cloud {
   async ensureAuth(interactive: boolean): Promise<boolean> {
     if (!this.clientId) return false
     if (hasValidToken()) { this.authNeeded = false; return true }
+    if (hasSession()) {
+      // long-lived login: renew the access token silently (no popup)
+      try { await getToken(this.clientId, ALL_SCOPES, false); this.authNeeded = false; return true } catch {
+        if (!interactive) { this.authNeeded = !hasSession(); return false } // offline: retry later, not a sign-in problem
+      }
+    }
     if (!interactive) { this.authNeeded = true; return false }
     try {
       await loadGis()

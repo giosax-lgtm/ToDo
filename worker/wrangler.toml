@@ -1,0 +1,9 @@
+# Configurazione del Worker di autenticazione (vedi SETUP.md, C3). Il client secret NON va qui: si imposta con `npx wrangler secret put GOOGLE_CLIENT_SECRET`.
+name = "todo-auth"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+GOOGLE_CLIENT_ID = "188390081654-qtjlan309h2vas5ntikleaqgab9da456.apps.googleusercontent.com"
+# Origini da cui l'app puo' chiamare il Worker (solo origine, separate da virgola): sito pubblicato e/o localhost.
+ALLOWED_ORIGINS = "https://giosax-lgtm.github.io,http://localhost:4173"

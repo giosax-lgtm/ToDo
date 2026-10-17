@@ -158,6 +158,11 @@
         <input type="text" placeholder="123456-abc.apps.googleusercontent.com" value={store.pref('gClientId', '')}
           onchange={(e) => store.setPref('gClientId', e.currentTarget.value.trim())} />
       </label>
+      <label class="srow">Sign-in server (optional)
+        <input type="text" placeholder="https://todo-auth.<you>.workers.dev" value={store.pref('gAuthUrl', '')}
+          onchange={(e) => store.setPref('gAuthUrl', e.currentTarget.value.trim())} />
+        <small class="muted">Sign in once and stay signed in (no hourly re-login). Leave empty for the hourly sign-in. See SETUP.md (C3); after changing it, press Disconnect and Connect again.</small>
+      </label>
       <label class="srow row">
         <span>Show task titles in Google Calendar<br /><small class="muted">Off = generic "To-do reminder" (Google never sees your task text)</small></span>
         <input type="checkbox" checked={store.pref('gShowTitles', false)} onchange={(e) => store.setPref('gShowTitles', e.currentTarget.checked)} />
