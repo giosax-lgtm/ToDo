@@ -109,7 +109,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 label, .lbl { display: flex; flex-direction: column; gap: 0.2857rem; font-size: calc(0.8571rem * var(--ts, 1)); color: var(--muted); font-weight: 700; }
 .block { display: flex; flex-direction: column; gap: 0.4286rem; }
 select, input[type='date'], textarea, .block > input { padding: 0.4286rem 0.5714rem; border: 1px solid var(--border); border-radius: 0.5714rem; background: var(--surface); color: var(--text); }
-textarea { resize: vertical; }
+textarea { resize: vertical; max-height: 70vh; }
 .sub-row { display: flex; flex-direction: row; align-items: center; gap: 0.5714rem; color: var(--text); font-size: calc(1rem * var(--ts, 1)); }
 .sub-row span { flex: 1; font-weight: 400; }
 .sub-row { padding: 0.4286rem 0.7143rem; border: 1px solid var(--border); border-radius: 0.7143rem; background: var(--surface); line-height: 1.35; transition: background 0.15s, border-color 0.15s; }

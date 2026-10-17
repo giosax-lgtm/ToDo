@@ -76,6 +76,16 @@
     return s.replace(/\(image:(\d+)\)/g, (m, i) => originals[Number(i) - 1] ?? m)
   }
 
+  // Adatta l'altezza della textarea al contenuto (ricalcolata a ogni digitazione e al cambio del testo).
+  function autogrow(node: HTMLTextAreaElement, _text?: string) {
+    const fit = () => { node.style.height = 'auto'; node.style.height = `${node.scrollHeight + 2}px` }
+    fit()
+    node.addEventListener('input', fit)
+    const ro = new ResizeObserver(fit)
+    ro.observe(node.parentElement ?? node)
+    return { update: fit, destroy() { node.removeEventListener('input', fit); ro.disconnect() } }
+  }
+
   // Aggiunge un sottotask con il testo digitato (Invio nel campo).
   function addSub() {
     const text = newSub.trim()
@@ -134,7 +144,7 @@
         <button class="mini" type="button" onclick={() => imageInput?.click()}>📎 Add image</button>
       </span>
       <input type="file" accept="image/*" multiple hidden bind:this={imageInput} onchange={(e) => void attachImages((e.currentTarget as HTMLInputElement).files)} />
-      <textarea rows="4" value={shortenImages(task.description)} onpaste={onPasteImage} ondrop={onDropImages} ondragover={(e) => e.preventDefault()} onchange={(e) => patch({ description: restoreImages(e.currentTarget.value) })}></textarea>
+      <textarea rows="4" use:autogrow={task.description} value={shortenImages(task.description)} onpaste={onPasteImage} ondrop={onDropImages} ondragover={(e) => e.preventDefault()} onchange={(e) => patch({ description: restoreImages(e.currentTarget.value) })}></textarea>
     </label>
     {#if /https?:\/\/|!\[[^\]]*\]\((?:data:image|https?:\/\/)/.test(task.description)}
       <div class="block desc-links"><Linkify text={task.description} /></div>
