@@ -115,6 +115,9 @@
   const subDone = $derived(task.subtasks.filter((s) => s.done).length)
   const subProgress = $derived(task.subtasks.length ? Math.round((subDone / task.subtasks.length) * 100) : 0)
 
+  // Pannello a tutto schermo (preferenza 'detailMax', ricordata): pulsante ⤢ nell'intestazione, visibile solo su schermi larghi (su telefono il pannello e' gia' a tutta larghezza).
+  const maxed = $derived(store.pref('detailMax', false))
+
   // Chiude il pannello (store.openTaskId = null): Esc, click sullo sfondo o pulsante X.
   function close() { store.openTaskId = null }
 </script>
@@ -122,11 +125,12 @@
 <svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
 
 <div class="overlay" role="presentation" onclick={close}>
-  <div class="detail" role="dialog" aria-label="Task details" tabindex="-1" style:width="min({store.width('detail', 480)}px, 100%)" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
-    <div class="resizer" role="separator" aria-orientation="vertical" use:resizer={{ key: 'detail', dir: -1, min: 340, max: 1100, fallback: 480 }}></div>
+  <div class="detail" role="dialog" aria-label="Task details" tabindex="-1" class:maxed style:width={maxed ? '100%' : `min(${store.width('detail', 480)}px, 100%)`} onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
+    {#if !maxed}<div class="resizer" role="separator" aria-orientation="vertical" use:resizer={{ key: 'detail', dir: -1, min: 340, max: 1100, fallback: 480 }}></div>{/if}
     <div class="detail-head">
       <button class="check big" class:on={task.done} aria-label="Complete" onclick={() => patch({ done: !task.done })}>{task.done ? '✓' : ''}</button>
       <input class="title-input" value={task.title} onchange={(e) => patch({ title: e.currentTarget.value.trim() || task.title })} />
+      <button class="icon max-btn" aria-label={maxed ? 'Restore size' : 'Full screen'} title={maxed ? 'Restore size' : 'Full screen'} onclick={() => store.setPref('detailMax', !maxed)}>{maxed ? '❐' : '⤢'}</button>
       <button class="icon" aria-label="Close" onclick={close}>✕</button>
     </div>
 

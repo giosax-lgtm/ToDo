@@ -532,3 +532,49 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .trk-cm { padding: 0 0.7143rem 0.7143rem 2.9rem; }
 .trk-main .sub-cm { align-self: flex-start; margin-top: 1px; }
 @media (max-width: 760px) { .trk-cm { padding-left: 0.7143rem; } .drag-h { opacity: .8; padding: 0.5rem 0.3571rem; } }
+
+/* ---- dettaglio task a tutto schermo ---- */
+.detail.maxed { padding-left: max(1.4286rem, calc((100% - 62rem) / 2)); padding-right: max(1.4286rem, calc((100% - 62rem) / 2)); }
+@media (max-width: 760px) {
+  .max-btn { display: none; }
+  .detail { padding: 1rem 0.8571rem; }
+}
+
+/* ---- barra della vista compatta su mobile: vista + ricerca + ⚙ ---- */
+.edit-badge { margin-left: 0.3571rem; min-width: 1.1429rem; height: 1.1429rem; padding: 0 0.2857rem; border-radius: 999px; background: var(--side-active); color: #fff; font-size: calc(0.7143rem * var(--ts, 1)); display: inline-grid; place-items: center; }
+.inline-filter { display: flex; flex-direction: column; gap: 2px; padding: 0.2857rem 0.5714rem 0.5714rem; margin: 0 0 0.2857rem; border-left: 2px solid var(--border); }
+.sub .sel-row.active { color: var(--side-active); font-weight: 700; }
+@media (max-width: 760px) {
+  .toolbar { flex-wrap: wrap; padding: 0.4286rem 0.8571rem; gap: 0.4286rem; }
+  .toolbar .fwrap { position: static; }
+  .toolbar > .fwrap:first-child { flex: 0 1 auto; min-width: 0; max-width: 45%; }
+  .toolbar > .fwrap:first-child .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar .search { flex: 1 1 6rem; width: auto; min-width: 0; }
+  .toolbar .edit-txt { display: none; }
+  .toolbar .edit-chip { padding: 0.3571rem 0.6429rem; font-size: calc(1.1429rem * var(--ts, 1)); display: inline-flex; align-items: center; }
+  .toolbar .popover.menu { left: 0.5rem; right: 0.5rem; min-width: 0; max-height: 65vh; }
+}
+
+/* ---- note su mobile: pulsanti e icone piu' grandi (bersagli da ~44px) ---- */
+@media (max-width: 760px) {
+  .notes-head { padding: 0.4286rem 0.5714rem; column-gap: 0.1429rem; }
+  .notes-head .icon { width: 2.5rem; height: 2.5rem; font-size: calc(1.2857rem * var(--ts, 1)); }
+  .notes-name { font-size: calc(1.0714rem * var(--ts, 1)); }
+  .notes-tabs { padding-top: 0.4286rem; }
+  .notes-tab { padding: 0.6429rem 1.1429rem; font-size: calc(1rem * var(--ts, 1)); }
+  .notes-pages { width: 9.5rem; }
+  .notes-page { padding: 0.7143rem 0.7143rem; font-size: calc(1rem * var(--ts, 1)); }
+  .notes-title { font-size: calc(1.4286rem * var(--ts, 1)); }
+  .notes-tools { gap: 0.2857rem; padding: 0.5rem; }
+  .notes-tools .tb { min-width: 2.5rem; height: 2.5rem; font-size: calc(1.2143rem * var(--ts, 1)); border-radius: 0.5714rem; }
+  .notes-tools .sep { height: 1.7143rem; }
+  .notes-tools select { padding: 0.5714rem 0.4286rem; max-width: 8.5rem; font-size: max(16px, 1em); }
+  .notes-win .chip { padding: 0.6429rem 1rem; font-size: calc(1rem * var(--ts, 1)); }
+  .notes-win .menu-item, .notes-win .popover > button { padding: 0.7143rem 0.7143rem; }
+  .nb-grip { height: 1.5rem; top: -1.5rem; font-size: 1rem; opacity: 1; }
+  .nb-x { font-size: 1rem; padding: 0 0.5714rem; top: 0.1429rem; }
+  .nb-rz { width: 1.25rem; right: -0.625rem; }
+  .img-h { width: 24px; height: 24px; right: -12px; bottom: -12px; border-radius: 6px; }
+  .draw-tools .color input { width: 2.75rem; height: 2.5rem; }
+  .draw-tools .tb, .draw-tools .chip { min-height: 2.5rem; }
+}

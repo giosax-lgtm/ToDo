@@ -7,21 +7,36 @@
 <script lang="ts">
   import { store } from './store.svelte'
   import Pill from './Pill.svelte'
+  import type { ViewFilter } from './types'
 
   // Stato locale: quale menu a comparsa e' aperto, quale sottosezione di 'Edit view' e quale menu opzioni di una vista.
   type Menu = 'views' | 'edit' | 'group' | `filter:${string}` | 'addfilter' | null
   let menu = $state<Menu>(null)
   let sub = $state<'filter' | 'sort' | 'hide' | 'group' | null>(null)
   let viewMenu = $state<string | null>(null)
+  let openF = $state<string | null>(null) // mobile: filtro di cui si sta modificando i valori dentro 'Edit view'
+
+  // Su schermo stretto (stessa soglia del CSS mobile) la barra si riduce a: vista, ricerca e un'unica icona ⚙; gruppo e filtri vivono dentro il menu.
+  let mobile = $state(typeof matchMedia !== 'undefined' && matchMedia('(max-width: 760px)').matches)
+  $effect(() => {
+    const mq = matchMedia('(max-width: 760px)')
+    const on = () => { mobile = mq.matches; menu = null }
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  })
 
   // Scorciatoia alla bozza della vista e apertura/chiusura di un menu (riaprire lo stesso lo chiude).
   const d = $derived(store.draft)
-  const toggleMenu = (m: Menu) => { menu = menu === m ? null : m; sub = null; viewMenu = null }
+  const toggleMenu = (m: Menu) => { menu = menu === m ? null : m; sub = null; viewMenu = null; openF = null }
 
   // Attributi disponibili per filtri/raggruppamento/ordinamento e le relative etichette (da store.attributeKeys e store.filterLabel).
   const attrs = $derived(store.attributeKeys)
   const sortKeys = $derived(['name', ...attrs.filter((k) => k !== 'completed'), 'created'])
   const sortLabel = (k: string) => (k === 'name' ? 'Name' : k === 'created' ? 'Created' : store.filterLabel(k))
+  // Numero di impostazioni attive (filtri, ordinamento, campi nascosti, raggruppamento diverso dallo stato): il numerino sull'icona ⚙ in versione mobile.
+  const activeCount = $derived(
+    d.filters.filter((f) => f.values.length).length + (d.sort ? 1 : 0) + (d.hidden.length ? 1 : 0) + (d.groupBy !== 'status' ? 1 : 0),
+  )
   const groupLabel = $derived(d.groupBy === 'none' ? 'None' : store.filterLabel(d.groupBy))
   // Elenco dei campi che si possono nascondere nella vista (campi fissi + campi tag).
   const hideable = $derived([
@@ -53,6 +68,20 @@
     menu = null
   }
 </script>
+
+{#snippet filterEditor(f: ViewFilter)}
+  <select value={f.op} onchange={(e) => store.setFilter(f.key, { op: e.currentTarget.value as 'includes' | 'excludes' })}>
+    <option value="includes">includes</option>
+    <option value="excludes">excludes</option>
+  </select>
+  {#each store.filterOptions(f.key) as o (o.value)}
+    <label class="optrow">
+      <input type="checkbox" checked={f.values.includes(o.value)} onchange={() => toggleValue(f.key, o.value)} />
+      <Pill label={o.label} color={o.color} />
+    </label>
+  {/each}
+  <button class="menu-item danger" onclick={() => { store.removeFilter(f.key); menu = mobile ? 'edit' : null; openF = null }}>🗑 Remove filter</button>
+{/snippet}
 
 {#if menu}<div class="backdrop" role="presentation" onclick={() => (menu = null)}></div>{/if}
 
@@ -91,7 +120,7 @@
 
   <!-- Edit view -->
   <div class="fwrap">
-    <button class="chip" aria-label="Edit view" onclick={() => toggleMenu('edit')}>⚙ Edit view</button>
+    <button class="chip edit-chip" class:active={mobile && activeCount > 0} aria-label="Edit view" onclick={() => toggleMenu('edit')}>⚙<span class="edit-txt"> Edit view</span>{#if mobile && activeCount}<b class="edit-badge">{activeCount}</b>{/if}</button>
     {#if menu === 'edit'}
       <div class="popover menu">
         <div class="menu-title">Edit view</div>
@@ -100,8 +129,16 @@
         </button>
         {#if sub === 'filter'}
           <div class="sub">
+            {#if mobile}
+              {#each d.filters as f (f.key)}
+                <button class="sel-row" class:active={f.values.length > 0} onclick={() => (openF = openF === f.key ? null : f.key)}>
+                  {store.filterLabel(f.key)}{f.values.length ? ` ${f.op === 'includes' ? '=' : '≠'} ${f.values.length}` : ''} {openF === f.key ? '▴' : '▾'}
+                </button>
+                {#if openF === f.key}<div class="inline-filter">{@render filterEditor(f)}</div>{/if}
+              {/each}
+            {/if}
             {#each attrs.filter((k) => !d.filters.some((f) => f.key === k)) as k (k)}
-              <button onclick={() => { store.addFilter(k); menu = `filter:${k}` }}>＋ {store.filterLabel(k)}</button>
+              <button onclick={() => { store.addFilter(k); if (mobile) openF = k; else menu = `filter:${k}` }}>＋ {store.filterLabel(k)}</button>
             {/each}
           </div>
         {/if}
@@ -151,6 +188,7 @@
     {/if}
   </div>
 
+  {#if !mobile}
   <!-- Group by -->
   <div class="fwrap">
     <button class="chip" onclick={() => toggleMenu('group')}>Group by: {groupLabel} ▾</button>
@@ -173,19 +211,7 @@
         {store.filterLabel(f.key)}{f.values.length ? ` ${f.op === 'includes' ? '=' : '≠'} ${f.values.length}` : ''} ▾
       </button>
       {#if menu === `filter:${f.key}`}
-        <div class="popover menu">
-          <select value={f.op} onchange={(e) => store.setFilter(f.key, { op: e.currentTarget.value as 'includes' | 'excludes' })}>
-            <option value="includes">includes</option>
-            <option value="excludes">excludes</option>
-          </select>
-          {#each store.filterOptions(f.key) as o (o.value)}
-            <label class="optrow">
-              <input type="checkbox" checked={f.values.includes(o.value)} onchange={() => toggleValue(f.key, o.value)} />
-              <Pill label={o.label} color={o.color} />
-            </label>
-          {/each}
-          <button class="menu-item danger" onclick={() => { store.removeFilter(f.key); menu = null }}>🗑 Remove filter</button>
-        </div>
+        <div class="popover menu">{@render filterEditor(f)}</div>
       {/if}
     </div>
   {/each}
@@ -200,6 +226,7 @@
       </div>
     {/if}
   </div>
+  {/if}
 
   {#if store.dirty}
     <span class="spacer"></span>
