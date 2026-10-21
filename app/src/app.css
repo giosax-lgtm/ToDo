@@ -578,3 +578,32 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .draw-tools .color input { width: 2.75rem; height: 2.5rem; }
   .draw-tools .tb, .draw-tools .chip { min-height: 2.5rem; }
 }
+
+/* ---- note su mobile: piu' spazio per scrivere ---- */
+.zen-btn { display: none; }
+@media (max-width: 760px) {
+  .zen-btn { display: inline-grid; }
+  /* elenco pagine: da colonna laterale a striscia orizzontale */
+  .notes-main { flex-direction: column; }
+  .notes-pages { width: auto; flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--border); padding: 0.25rem 0.5rem; overflow-x: auto; overflow-y: hidden; flex: none; }
+  .notes-pages .chip { margin-bottom: 0; flex: none; padding: 0.35rem 0.8rem; }
+  .notes-page { flex: none; max-width: 10rem; padding: 0.4rem 0.8rem; }
+  .notes-tab { padding: 0.4rem 0.9rem; }
+  .notes-tabs .icon { flex: none; }
+  .notes-titlebar { padding-top: 0.2rem; }
+  .notes-title { font-size: calc(1.2rem * var(--ts, 1)); }
+  /* barra strumenti: una sola riga scorrevole */
+  .notes-tools { display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column; grid-auto-columns: max-content; justify-items: start; align-items: center; overflow-x: auto; padding: 0.25rem 0.5rem; flex: none; }
+  .notes-tools .sep { display: none; }
+  .notes-win.tools-off .notes-tools { display: none; }
+  .notes-tools .tb { min-width: 2.25rem; height: 2.25rem; }
+  .notes-tools select { padding: 0.35rem 0.3rem; max-width: 6.5rem; }
+  .notes-editor, .notes-canvas { margin: 0.25rem; }
+  /* modalita' pagina intera: restano solo testata compatta, strumenti ed editor */
+  .notes-win.zen .notes-name,
+  .notes-win.zen .notes-tabs,
+  .notes-win.zen .notes-pages,
+  .notes-win.zen .notes-titlebar { display: none; }
+  .notes-win.zen .notes-head { flex-wrap: nowrap; justify-content: flex-end; padding: 0.15rem 0.4rem; }
+  .notes-win.zen .notes-head .icon { width: 2rem; height: 2rem; }
+}

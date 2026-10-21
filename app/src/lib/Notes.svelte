@@ -44,6 +44,8 @@
   const page = $derived(pages.find((p) => p.id === pageId) ?? pages[0])
 
   let exportOpen = $state(false)
+  let toolsOff = $state(false) // mobile: formatting toolbar hidden
+  let zen = $state(false) // mobile: only the editor is shown, menus minimized
   let scope = $state<'page' | 'section' | 'list'>('page')
 
   // ---------- finestra: trascinamento, ridimensionamento, stato ----------
@@ -649,6 +651,8 @@
     class:min={win.min && !win.docked}
     class:max={win.max && !win.docked}
     class:docked={win.docked}
+    class:zen
+    class:tools-off={toolsOff}
     style:left={win.docked ? undefined : geo.x + 'px'}
     style:top={win.docked ? undefined : geo.y + 'px'}
     style:width={win.docked ? store.width('notesDock', 440) + 'px' : geo.w + 'px'}
@@ -665,6 +669,8 @@
       <button class="icon light" title="Show/hide pages" onclick={() => store.setNotesWin({ list: !win.list, min: false })}>☰</button>
       <strong class="notes-name">📝 Notes — {store.currentProject?.name}</strong>
       <span class="spacer"></span>
+      <button class="icon light zen-btn" title={toolsOff ? 'Show formatting tools' : 'Hide formatting tools'} onclick={() => (toolsOff = !toolsOff)}>Aa</button>
+      <button class="icon light zen-btn" title={zen ? 'Show menus' : 'Full-page writing (hide menus)'} onclick={() => (zen = !zen)}>{zen ? '⤡' : '⤢'}</button>
       <div class="fwrap">
         <button class="icon light" title="Export" onclick={() => (exportOpen = !exportOpen)}>⇩</button>
         {#if exportOpen}
