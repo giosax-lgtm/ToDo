@@ -1,22 +1,26 @@
 <!--
   PANNELLO DI DETTAGLIO di un task (si apre a destra sopra il board/tabella, ridimensionabile con resizer.ts). Modifica ogni proprieta' tramite store.updateTask():
-  titolo, stato, priorita' (stelle), scadenza, reminder (Reminders.svelte), descrizione, sottotask, tag (TagPicker.svelte), creazione di nuovi campi tag, eliminazione.
+  titolo, stato, priorita' (stelle), scadenza, reminder (Reminders.svelte), descrizione, sottotask (o, con il tracciamento attivo, passi + diario: Tracker.svelte), tag (TagPicker.svelte), creazione di nuovi campi tag, eliminazione.
   Montato da App.svelte quando store.openTask esiste (aperto da Card, TableView, Alerts o dopo la creazione di un task). Si chiude con Esc o click fuori.
 -->
 
 <script lang="ts">
   import { store } from './store.svelte'
   import { resizer } from './resizer'
+  import { sortable } from './sortable'
   import TagPicker from './TagPicker.svelte'
   import Reminders from './Reminders.svelte'
+  import Tracker from './Tracker.svelte'
   import Linkify from './Linkify.svelte'
-  import type { Task } from './types'
+  import Comments from './Comments.svelte'
+  import type { Subtask, Task } from './types'
 
   let { task }: { task: Task } = $props()
 
   // Testo digitato per un nuovo sottotask e per un nuovo campo tag.
   let newSub = $state('')
   let newField = $state('')
+  let openSub = $state<string | null>(null) // sotto-task con i commenti aperti
   let imageInput: HTMLInputElement | undefined
 
   // Scorciatoia: applica una modifica parziale al task aperto (store.updateTask).
@@ -95,8 +99,17 @@
   }
 
   // Modifica un sottotask (spunta/rimuovi 'fatto') sostituendolo nell'elenco del task.
-  function setSub(id: string, p: { done?: boolean }) {
+  function setSub(id: string, p: Partial<Subtask>) {
     patch({ subtasks: task.subtasks.map((s) => (s.id === id ? { ...s, ...p } : s)) })
+  }
+
+  // Riordino dei sotto-task dopo un trascinamento (sortable.ts): sposta il sotto-task 'id' alla posizione 'index'.
+  function moveSub(id: string, _to: HTMLElement, index: number) {
+    const list = task.subtasks.filter((s) => s.id !== id)
+    const moved = task.subtasks.find((s) => s.id === id)
+    if (!moved) return
+    list.splice(index, 0, moved)
+    patch({ subtasks: list })
   }
 
   const subDone = $derived(task.subtasks.filter((s) => s.done).length)
@@ -150,8 +163,13 @@
       <div class="block desc-links"><Linkify text={task.description} /></div>
     {/if}
 
+    {#if task.track}
+      <Tracker {task} />
+    {:else}
     <div class="block">
-      <span class="lbl">Subtasks</span>
+      <span class="lbl label-row"><span>Subtasks</span>
+        <button class="mini" type="button" title="Steps with status (waiting, in progress…), an activity log and a progress bar" onclick={() => store.enableTracking(task.id)}>📈 Track progress</button>
+      </span>
       {#if task.subtasks.length}
         <div class="sub-summary-row">
           <span>{subDone}/{task.subtasks.length} completed</span>
@@ -161,15 +179,30 @@
           <span class="sub-progress-fill" style:width="{subProgress}%"></span>
         </div>
       {/if}
+      <div class="sub-list" use:sortable={{ item: '.sub-item', group: 'subtasks', handle: '.drag-h', onMove: moveSub }}>
       {#each task.subtasks as s (s.id)}
-        <div class="sub-row">
-          <input type="checkbox" checked={s.done} onchange={(e) => setSub(s.id, { done: e.currentTarget.checked })} />
-          <span class:struck={s.done}><Linkify text={s.text} /></span>
-          <button class="icon" aria-label="Remove subtask" onclick={() => patch({ subtasks: task.subtasks.filter((x) => x.id !== s.id) })}>✕</button>
+        <div class="sub-item" data-id={s.id}>
+          <div class="sub-row">
+            <i class="drag-h" aria-hidden="true" title="Drag to reorder">⋮⋮</i>
+            <input type="checkbox" checked={s.done} onchange={(e) => setSub(s.id, { done: e.currentTarget.checked })} />
+            <span class:struck={s.done}><Linkify text={s.text} /></span>
+            <button class="sub-cm" class:has={!!s.comments?.length} aria-label="Comments" aria-expanded={openSub === s.id} title="Comments"
+              onclick={() => (openSub = openSub === s.id ? null : s.id)}>💬{s.comments?.length ? ` ${s.comments.length}` : ''}</button>
+            <button class="icon" aria-label="Remove subtask" onclick={() => patch({ subtasks: task.subtasks.filter((x) => x.id !== s.id) })}>✕</button>
+          </div>
+          {#if openSub === s.id}
+            <div class="sub-comments">
+              <Comments comments={s.comments}
+                onadd={(t) => setSub(s.id, { comments: [...(s.comments ?? []), { id: crypto.randomUUID(), at: Date.now(), text: t }] })}
+                ondelete={(c) => setSub(s.id, { comments: (s.comments ?? []).filter((x) => x.id !== c) })} />
+            </div>
+          {/if}
         </div>
       {/each}
+      </div>
       <input placeholder="Add subtask, Enter" bind:value={newSub} onkeydown={(e) => e.key === 'Enter' && addSub()} />
     </div>
+    {/if}
 
     {#each store.fieldsOf() as f (f.id)}
       <div class="block"><TagPicker {task} field={f} /></div>

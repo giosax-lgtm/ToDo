@@ -22,6 +22,10 @@
   const nextRem = $derived(task.reminders.filter((r) => !r.fired).map((r) => r.at).sort()[0])
   const showRem = $derived(!!nextRem && !hidden.includes('reminders'))
   const showSub = $derived(task.subtasks.length > 0 && !hidden.includes('subtasks'))
+  // Task con tracciamento: avanzamento dai passi (barra a segmenti colorati per stato) al posto dei sotto-task.
+  const stats = $derived(task.track ? store.stepStats(task.id) : null)
+  const trackSteps = $derived(task.track ? store.stepsOf(task.id) : [])
+  const showTrack = $derived(!!stats && stats.total > 0 && !hidden.includes('subtasks'))
   const tagGroups = $derived(
     store.fieldsOf()
       .filter((f) => !hidden.includes(f.id))
@@ -43,10 +47,14 @@
     </button>
     <span class="card-title"><Linkify text={task.title} /></span>
   </div>
-  {#if showPriority || showDue || showSub || showRem}
+  {#if showPriority || showDue || showSub || showTrack || showRem}
     <div class="meta">
       {#if showPriority}<span class="stars">{'★'.repeat(task.priority)}</span>{/if}
       {#if showSub}<span>☑ {subDone}/{task.subtasks.length} · {subProgress}%</span>{/if}
+      {#if showTrack && stats}
+        <span>📈 {stats.pct}%</span>
+        {#if stats.waiting}<span class="trk-badge waiting">⏳ {stats.waiting} waiting</span>{/if}
+      {/if}
       {#if showRem}<span title="Next reminder">🔔 {nextRem.replace('T', ' ')}</span>{/if}
       {#if showDue}<span class:overdue>📅 {task.due}</span>{/if}
     </div>
@@ -54,6 +62,11 @@
   {#if showSub}
     <div class="sub-progress" aria-label="Subtasks progress">
       <span class="sub-progress-fill" style:width="{subProgress}%"></span>
+    </div>
+  {/if}
+  {#if showTrack}
+    <div class="trk-bar slim" aria-label="Progress {stats?.pct}%">
+      {#each trackSteps as s (s.id)}<span class="seg {s.status}"></span>{/each}
     </div>
   {/if}
   {#if task.description && !hidden.includes('description')}

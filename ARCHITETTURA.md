@@ -67,7 +67,7 @@ Comandi (da `app/`):
 | | `noteexport.ts`, `zip.ts` | esportazione docx/pdf/html/md/txt; mini writer zip |
 | **Interazione** | `sortable.ts` | azione drag & drop |
 | | `resizer.ts` | azione ridimensionamento pannelli |
-| **UI** | `Sidebar`, `Toolbar`, `Board`, `Column`, `Card`, `TableView`, `CardDetail`, `TagPicker`, `Reminders`, `Alerts`, `Settings`, `Pill`, `Linkify` (`.svelte`) | componenti |
+| **UI** | `Sidebar`, `Toolbar`, `Board`, `Column`, `Card`, `TableView`, `CardDetail`, `TagPicker`, `Reminders`, `Tracker`, `Comments`, `Alerts`, `Settings`, `Pill`, `Linkify` (`.svelte`) | componenti |
 
 ## 3. Architettura
 

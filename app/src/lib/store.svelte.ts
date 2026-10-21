@@ -8,7 +8,7 @@
 import { SvelteMap } from 'svelte/reactivity'
 import { db } from './db'
 import { COLOR_KEYS } from './colors'
-import type { Column, Field, FieldOption, Group, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Task, View, ViewFilter, ViewSort } from './types'
+import type { Column, Field, FieldOption, Group, LogEntry, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Step, StepStatus, Task, View, ViewFilter, ViewSort } from './types'
 
 // Genera un id univoco (UUID) per nuove entita'.
 const uid = () => crypto.randomUUID()
@@ -58,7 +58,8 @@ export function nextOccurrence(at: string, repeat: Repeat, after = new Date()): 
 }
 
 // Avviso di reminder mostrato a schermo (banner in Alerts.svelte): id, task, titolo e orario.
-export interface ReminderAlert { id: string; taskId: string; title: string; at: string }
+// Per il promemoria di un passo 'stepId' e' valorizzato e 'title' contiene "task — passo".
+export interface ReminderAlert { id: string; taskId: string; title: string; at: string; stepId?: string }
 
 // Fabbrica di viste: crea una vista con valori di default, sovrascrivibili con 'o'. Usata per le viste iniziali (seedViews) e per la bozza iniziale.
 const newView = (projectId: string, name: string, o: Partial<View> = {}): View => ({
@@ -94,6 +95,8 @@ class AppStore {
   views = $state<View[]>([])
   notes = $state<NotePage[]>([])
   noteSections = $state<NoteSection[]>([])
+  steps = $state<Step[]>([])
+  logs = $state<LogEntry[]>([])
   currentProjectId = $state('')
   currentViewId = $state('')
   draft = $state<View>(newView('', 'Default')) // working copy of the current view
@@ -153,7 +156,7 @@ class AppStore {
   // Rilegge tutte le tabelle da IndexedDB nello stato in memoria, riparando dati vecchi (order mancante, reminders assenti). Chiamata da init, applySync e wipeAll.
   /** (Re)read all data tables from IndexedDB into memory. */
   private async loadTables() {
-    const [projects, columns, tasks, fields, options, views, notes, noteSections] = await Promise.all([
+    const [projects, columns, tasks, fields, options, views, notes, noteSections, steps, logs] = await Promise.all([
       db.projects.toArray(),
       db.columns.toArray(),
       db.tasks.toArray(),
@@ -162,6 +165,8 @@ class AppStore {
       db.views.toArray(),
       db.notes.toArray(),
       db.noteSections.toArray(),
+      db.steps.toArray(),
+      db.logs.toArray(),
     ])
     this.projects = projects.sort((a, b) => a.order - b.order)
     this.columns = columns.map((c, i) => ({ ...c, order: c.order ?? i }))
@@ -171,6 +176,8 @@ class AppStore {
     this.views = views
     this.notes = notes
     this.noteSections = noteSections
+    this.steps = steps
+    this.logs = logs
   }
 
   // Avvio dello store (chiamato da App.svelte): carica preferenze e dati, crea i dati iniziali se il database e' vuoto, assicura le viste per ogni lista, ripristina lista e vista dell'ultima sessione.
@@ -265,13 +272,15 @@ class AppStore {
     add('views', this.views.map((v) => ({ ...v, search: '' })))
     add('notes', this.notes)
     add('noteSections', this.noteSections)
+    add('steps', this.steps)
+    add('logs', this.logs)
     return out
   }
 
   // Applica a IndexedDB le modifiche arrivate dalla sync o da un import (dato null = cancella), poi ricarica lo stato, rigenera le viste mancanti e corregge selezione/task aperto se spariti. Chiamata da cloud.run() e backup.importBackup().
   /** Write remote changes to IndexedDB (data === null deletes) and refresh the in-memory state. */
   async applySync(changes: Map<string, unknown | null>) {
-    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections }
+    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections, steps: db.steps, logs: db.logs }
     const put: Record<string, unknown[]> = {}
     const del: Record<string, string[]> = {}
     for (const [key, data] of changes) {
@@ -296,8 +305,8 @@ class AppStore {
   // Cancella tutti i dati locali (non le preferenze). Usata da backup.importBackup() e da cloud.join() su un dispositivo nuovo.
   /** Remove all local data (used when joining an existing cloud vault from a fresh device). */
   async wipeAll() {
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections], async () => {
-      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear()])
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections, db.steps, db.logs], async () => {
+      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear(), db.steps.clear(), db.logs.clear()])
     })
     await this.loadTables()
   }
@@ -582,7 +591,9 @@ class AppStore {
     if (!already) {
       const patch = g.apply?.(t)
       if (!patch) return
+      const before = { columnId: t.columnId, done: t.done, due: t.due }
       Object.assign(t, patch, { updatedAt: Date.now() })
+      void this.logTaskChange(t, before)
     }
     if (this.draft.sort) {
       await db.tasks.put(plain(t))
@@ -687,7 +698,11 @@ class AppStore {
     this.views = this.views.filter((v) => v.projectId !== id)
     this.notes = this.notes.filter((n) => n.projectId !== id)
     this.noteSections = this.noteSections.filter((n) => n.projectId !== id)
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections], async () => {
+    this.steps = this.steps.filter((s) => s.projectId !== id)
+    this.logs = this.logs.filter((l) => l.projectId !== id)
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections, db.steps, db.logs], async () => {
+      await db.steps.where('projectId').equals(id).delete()
+      await db.logs.where('projectId').equals(id).delete()
       await db.projects.delete(id)
       await db.columns.where('projectId').equals(id).delete()
       await db.tasks.where('projectId').equals(id).delete()
@@ -933,17 +948,31 @@ class AppStore {
       if (touched) changed.push(t)
     }
     if (changed.length) await db.tasks.bulkPut(plain(changed))
+    // promemoria dei passi (task con tracciamento): stessa logica, il passo fatto non scatta
+    const doneTasks = new Set(this.tasks.filter((t) => t.done).map((t) => t.id))
+    const stepsChanged: Step[] = []
+    for (const s of this.steps) {
+      const r = s.reminder
+      const t = this.tasks.find((x) => x.id === s.taskId)
+      if (!r || !t || r.fired || r.at > nowStr || s.status === 'done' || doneTasks.has(s.taskId)) continue
+      this.fireAlert(t, r.at, s)
+      r.fired = true
+      stepsChanged.push(s)
+      await this.addLog(t, `Reminder: ${s.text}`)
+    }
+    if (stepsChanged.length) await db.steps.bulkPut(plain(stepsChanged))
   }
 
-  // Aggiunge un alert a schermo (senza duplicati) e, se permesso, una notifica di sistema (tramite service worker o Notification).
-  private fireAlert(t: Task, at: string) {
-    if (this.alerts.some((a) => a.taskId === t.id && a.at === at)) return
-    this.alerts.push({ id: uid(), taskId: t.id, title: t.title, at })
+  // Aggiunge un alert a schermo (senza duplicati) e, se permesso, una notifica di sistema (tramite service worker o Notification). Con 'step' il testo è "task — passo".
+  private fireAlert(t: Task, at: string, step?: Step) {
+    if (this.alerts.some((a) => a.taskId === t.id && a.at === at && a.stepId === step?.id)) return
+    const title = step ? `${t.title} — ${step.text}` : t.title
+    this.alerts.push({ id: uid(), taskId: t.id, title, at, stepId: step?.id })
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      const opts = { body: 'Reminder', tag: t.id, icon: '/favicon.svg' }
+      const opts = { body: 'Reminder', tag: step?.id ?? t.id, icon: '/favicon.svg' }
       navigator.serviceWorker?.ready
-        .then((reg) => reg.showNotification(t.title, opts))
-        .catch(() => new Notification(t.title, opts))
+        .then((reg) => reg.showNotification(title, opts))
+        .catch(() => new Notification(title, opts))
     }
   }
 
@@ -958,6 +987,10 @@ class AppStore {
     this.dismissAlert(alert.id)
     if (!t) return
     const at = toLocalInput(new Date(Date.now() + minutes * 60000))
+    if (alert.stepId) { // promemoria di un passo: lo riarma a quest'ora
+      await this.setStepReminder(alert.stepId, at)
+      return
+    }
     await this.updateTask(t.id, { reminders: [...t.reminders, { id: uid(), at, repeat: 'none', fired: false }] })
   }
 
@@ -993,15 +1026,201 @@ class AppStore {
   async updateTask(id: string, patch: Partial<Task>) {
     const t = this.tasks.find((x) => x.id === id)
     if (!t) return
+    const before = { columnId: t.columnId, done: t.done, due: t.due }
     Object.assign(t, patch, { updatedAt: Date.now() })
     await db.tasks.put(plain(t))
+    await this.logTaskChange(t, before)
   }
 
-  // Elimina un task (CardDetail.svelte, pulsante 'Delete item').
+  // Elimina un task (CardDetail.svelte, pulsante 'Delete item') insieme ai suoi passi e al suo diario.
   async deleteTask(id: string) {
     this.tasks = this.tasks.filter((t) => t.id !== id)
+    this.steps = this.steps.filter((s) => s.taskId !== id)
+    this.logs = this.logs.filter((l) => l.taskId !== id)
     if (this.openTaskId === id) this.openTaskId = null
-    await db.tasks.delete(id)
+    await db.transaction('rw', db.tasks, db.steps, db.logs, async () => {
+      await db.tasks.delete(id)
+      await db.steps.where('taskId').equals(id).delete()
+      await db.logs.where('taskId').equals(id).delete()
+    })
+  }
+
+  // ---------- tracciamento (passi + diario) ----------
+  // Passi di un task, nell'ordine manuale. Usata da Tracker.svelte.
+  stepsOf(taskId: string) {
+    return this.steps.filter((s) => s.taskId === taskId).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt)
+  }
+
+  // Conteggi e percentuale di avanzamento di un task con tracciamento (fatti / totali). Usata da Card.svelte e Tracker.svelte.
+  stepStats(taskId: string) {
+    const list = this.steps.filter((s) => s.taskId === taskId)
+    const n = (st: StepStatus) => list.filter((s) => s.status === st).length
+    const done = n('done')
+    return { total: list.length, done, doing: n('doing'), waiting: n('waiting'), todo: n('todo'), pct: list.length ? Math.round((done / list.length) * 100) : 0 }
+  }
+
+  // Voci del diario di un task, dalla piu' recente.
+  logsOf(taskId: string) {
+    return this.logs.filter((l) => l.taskId === taskId).sort((a, b) => b.at - a.at)
+  }
+
+  // Aggiunge una voce al diario (auto o commento). Ignorata se il task non ha il tracciamento attivo.
+  private async addLog(t: Task, text: string, kind: LogEntry['kind'] = 'auto', at = Date.now()) {
+    if (!t.track) return
+    const l: LogEntry = { id: uid(), taskId: t.id, projectId: t.projectId, at, kind, text }
+    this.logs.push(l)
+    await db.logs.put(plain(l))
+  }
+
+  // Data 'yyyy-mm-dd' in forma breve leggibile ('20 Oct'), per il diario.
+  private shortDay(d: string | null) {
+    return d ? new Date(d + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'none'
+  }
+
+  // Scrive nel diario i cambiamenti del task (stato, completato, scadenza) rispetto al valore precedente. Chiamata da updateTask e moveTask; senza tracciamento non fa nulla.
+  private async logTaskChange(t: Task, before: { columnId: string; done: boolean; due: string | null }) {
+    if (!t.track) return
+    const name = (id: string) => this.columns.find((c) => c.id === id)?.name ?? '?'
+    if (t.columnId !== before.columnId) await this.addLog(t, `Status: ${name(before.columnId)} → ${name(t.columnId)}`)
+    if (t.done !== before.done) await this.addLog(t, t.done ? 'Item completed' : 'Item reopened')
+    if (t.due !== before.due) await this.addLog(t, `Due date: ${this.shortDay(before.due)} → ${this.shortDay(t.due)}`)
+  }
+
+  // Attiva il tracciamento: i sotto-task diventano passi (stesso id, nessuna perdita: fatto -> 'done', gli altri -> 'todo') e partono diario e avanzamento.
+  async enableTracking(taskId: string) {
+    const t = this.tasks.find((x) => x.id === taskId)
+    if (!t || t.track) return
+    const now = Date.now()
+    const base = this.steps.filter((s) => s.taskId === taskId).length
+    const made: Step[] = t.subtasks.map((s, i) => ({
+      id: s.id, taskId, projectId: t.projectId, text: s.text, status: s.done ? 'done' : 'todo', waitingFor: '', due: null,
+      comments: s.comments ?? [], statusAt: now, order: base + i, createdAt: now, updatedAt: now,
+    }))
+    t.subtasks = []
+    t.track = true
+    t.updatedAt = now
+    this.steps.push(...made)
+    await db.transaction('rw', db.tasks, db.steps, async () => {
+      await db.tasks.put(plain(t))
+      await db.steps.bulkPut(plain(made))
+    })
+    await this.addLog(t, made.length ? `Tracking started · ${made.length} subtask${made.length > 1 ? 's' : ''} moved to steps` : 'Tracking started')
+  }
+
+  // Disattiva il tracciamento: i passi tornano sotto-task (fatto/non fatto) e il diario resta salvato, visibile se si riattiva.
+  async disableTracking(taskId: string) {
+    const t = this.tasks.find((x) => x.id === taskId)
+    if (!t || !t.track) return
+    await this.addLog(t, 'Tracking stopped · steps moved back to subtasks')
+    const mine = this.stepsOf(taskId)
+    t.subtasks = [...t.subtasks, ...mine.map((s) => ({ id: s.id, text: s.text, done: s.status === 'done', comments: s.comments ?? [] }))]
+    t.track = false
+    t.updatedAt = Date.now()
+    this.steps = this.steps.filter((s) => s.taskId !== taskId)
+    await db.transaction('rw', db.tasks, db.steps, async () => {
+      await db.tasks.put(plain(t))
+      await db.steps.bulkDelete(mine.map((s) => s.id))
+    })
+  }
+
+  // Aggiunge un passo in coda.
+  async addStep(taskId: string, text: string) {
+    const t = this.tasks.find((x) => x.id === taskId)
+    const txt = text.trim()
+    if (!t || !txt) return
+    const now = Date.now()
+    const order = Math.max(-1, ...this.steps.filter((s) => s.taskId === taskId).map((s) => s.order)) + 1
+    const s: Step = { id: uid(), taskId, projectId: t.projectId, text: txt, status: 'todo', waitingFor: '', due: null, statusAt: now, order, createdAt: now, updatedAt: now }
+    this.steps.push(s)
+    await db.steps.put(plain(s))
+    await this.addLog(t, `Step added: ${txt}`)
+  }
+
+  // Modifica un passo (testo, stato, "aspetto chi", scadenza) e scrive nel diario cosa e' cambiato.
+  async updateStep(id: string, patch: Partial<Pick<Step, 'text' | 'status' | 'waitingFor' | 'due'>>) {
+    const s = this.steps.find((x) => x.id === id)
+    const t = s && this.tasks.find((x) => x.id === s.taskId)
+    if (!s || !t) return
+    const before = { status: s.status, waitingFor: s.waitingFor, due: s.due }
+    const now = Date.now()
+    Object.assign(s, patch, { updatedAt: now })
+    if (s.status !== before.status) s.statusAt = now
+    if (s.status !== 'waiting') s.waitingFor = ''
+    await db.steps.put(plain(s))
+    if (s.status !== before.status) {
+      const label = { todo: 'back to to do', doing: 'in progress', waiting: 'waiting' + (s.waitingFor ? ` for ${s.waitingFor}` : ''), done: 'done' }[s.status]
+      await this.addLog(t, `${s.text} → ${label}`)
+    } else if (s.status === 'waiting' && s.waitingFor !== before.waitingFor) {
+      await this.addLog(t, `${s.text} → waiting${s.waitingFor ? ` for ${s.waitingFor}` : ''}`)
+    }
+    if (s.due !== before.due) await this.addLog(t, `${s.text} · due ${this.shortDay(before.due)} → ${this.shortDay(s.due)}`)
+  }
+
+  // Imposta (o con null toglie) il promemoria di un passo. Cambiare l'orario lo riarma; l'id resta lo stesso, cosi' l'evento su Google Calendar viene aggiornato e non duplicato.
+  async setStepReminder(id: string, at: string | null) {
+    const s = this.steps.find((x) => x.id === id)
+    const t = s && this.tasks.find((x) => x.id === s.taskId)
+    if (!s || !t) return
+    s.reminder = at ? { id: s.reminder?.id ?? uid(), at, repeat: 'none', fired: false } : null
+    s.updatedAt = Date.now()
+    await db.steps.put(plain(s))
+    const when = at ? new Date(at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+    await this.addLog(t, at ? `${s.text} · reminder ${when}` : `${s.text} · reminder removed`)
+  }
+
+  // Riordina un gruppo di passi: 'ids' e' il nuovo ordine di quei passi; riusa gli stessi "posti" (valori order) che occupavano, cosi' i passi degli altri gruppi non si spostano.
+  async reorderSteps(ids: string[]) {
+    const subset = ids.map((id) => this.steps.find((s) => s.id === id)).filter((s): s is Step => !!s)
+    const slots = subset.map((s) => s.order).sort((a, b) => a - b)
+    const changed: Step[] = []
+    subset.forEach((s, i) => {
+      if (s.order !== slots[i]) { s.order = slots[i]; s.updatedAt = Date.now(); changed.push(s) }
+    })
+    if (changed.length) await db.steps.bulkPut(plain(changed))
+  }
+
+  // Aggiunge un commento a un passo; compare anche nel diario del task come commento ("Passo: testo").
+  async addStepComment(id: string, text: string) {
+    const s = this.steps.find((x) => x.id === id)
+    const t = s && this.tasks.find((x) => x.id === s.taskId)
+    const txt = text.trim()
+    if (!s || !t || !txt) return
+    s.comments = [...(s.comments ?? []), { id: uid(), at: Date.now(), text: txt }]
+    s.updatedAt = Date.now()
+    await db.steps.put(plain(s))
+    await this.addLog(t, `${s.text}: ${txt}`, 'note')
+  }
+
+  // Elimina un commento di un passo (la voce gia' scritta nel diario resta, e' storia).
+  async deleteStepComment(id: string, commentId: string) {
+    const s = this.steps.find((x) => x.id === id)
+    if (!s) return
+    s.comments = (s.comments ?? []).filter((c) => c.id !== commentId)
+    s.updatedAt = Date.now()
+    await db.steps.put(plain(s))
+  }
+
+  // Elimina un passo.
+  async deleteStep(id: string) {
+    const s = this.steps.find((x) => x.id === id)
+    const t = s && this.tasks.find((x) => x.id === s.taskId)
+    if (!s || !t) return
+    this.steps = this.steps.filter((x) => x.id !== id)
+    await db.steps.delete(id)
+    await this.addLog(t, `Step removed: ${s.text}`)
+  }
+
+  // Aggiunge un commento scritto dall'utente al diario ("cosa sto facendo").
+  async addNote(taskId: string, text: string) {
+    const t = this.tasks.find((x) => x.id === taskId)
+    const txt = text.trim()
+    if (t && txt) await this.addLog(t, txt, 'note')
+  }
+
+  // Elimina una voce del diario (solo i commenti sono eliminabili dall'interfaccia).
+  async deleteLog(id: string) {
+    this.logs = this.logs.filter((l) => l.id !== id)
+    await db.logs.delete(id)
   }
 }
 

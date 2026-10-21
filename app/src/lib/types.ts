@@ -38,11 +38,50 @@ export interface FieldOption {
   order: number
 }
 
+// Un COMMENTO di un sotto-task o di un passo (testo libero con data e ora). Mostrato/scritto da Comments.svelte; passa invariato da Subtask a Step e viceversa.
+export interface StepComment {
+  id: string
+  at: number
+  text: string
+}
+
 // Un sotto-task (checklist) contenuto dentro un Task; modificato da CardDetail.svelte.
 export interface Subtask {
   id: string
   text: string
   done: boolean
+  comments?: StepComment[]
+}
+
+// Stato di un PASSO del tracciamento: da fare, in corso, in attesa (di una risposta/di qualcuno), fatto.
+export type StepStatus = 'todo' | 'doing' | 'waiting' | 'done'
+
+// Un PASSO di un task con tracciamento (Task.track): e' un sotto-task con stato, scadenza facoltativa, promemoria facoltativo e "aspetto chi".
+// Record separato (tabella 'steps'), cosi' la sync unisce le modifiche passo per passo. I passi nascono dal passaggio automatico dei vecchi Subtask (stesso id).
+export interface Step {
+  id: string
+  taskId: string
+  projectId: string
+  text: string
+  status: StepStatus
+  waitingFor: string // solo con status 'waiting'
+  due: string | null // yyyy-mm-dd, facoltativa
+  comments?: StepComment[]
+  reminder?: Reminder | null // un solo promemoria per passo (stesso tipo dei reminder del task); non scatta se il passo e' 'done'
+  statusAt: number // quando e' stato impostato lo stato corrente (per "in attesa da 3 giorni")
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
+// Una voce del DIARIO di un task con tracciamento (tabella 'logs'): 'auto' = generata dall'app, 'note' = commento scritto dall'utente. Solo in aggiunta (append-only).
+export interface LogEntry {
+  id: string
+  taskId: string
+  projectId: string
+  at: number
+  kind: 'auto' | 'note'
+  text: string
 }
 
 // Frequenza di ripetizione di un reminder. Calcolo della prossima occorrenza: nextOccurrence() in store.svelte.ts; mappatura su Google Calendar: RRULE in gcal.svelte.ts.
@@ -69,6 +108,7 @@ export interface Task {
   done: boolean
   tags: Record<string, string[]> // fieldId -> optionIds
   subtasks: Subtask[]
+  track?: boolean // tracciamento attivo: i sotto-task diventano Step e il task ha un diario (LogEntry)
   reminders: Reminder[]
   order: number
   createdAt: number

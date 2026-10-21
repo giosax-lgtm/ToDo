@@ -64,7 +64,7 @@
   // push reminders to Google Calendar shortly after they change
   $effect(() => {
     if (!store.ready || !gcal.connected) return
-    JSON.stringify(store.tasks.map((t) => [t.id, t.done, t.title, t.reminders]))
+    JSON.stringify([store.tasks.map((t) => [t.id, t.done, t.title, t.reminders]), store.steps.map((s) => [s.id, s.status, s.text, s.reminder])])
     const h = setTimeout(() => gcal.sync(), 4000)
     return () => clearTimeout(h)
   })

@@ -42,6 +42,9 @@ Clicca una card (o il nome in tabella) per aprirlo. Chiudi con **✕**, con **Es
 - **Reminders**: promemoria con data/ora (sezione 6).
 - **Description**: testo libero. Gli indirizzi web diventano **link cliccabili**.
 - **Subtasks**: sotto-attività con spunta. Scrivi il testo e premi Invio per aggiungerne una; **✕** per toglierla.
+  - **💬 Commenti**: ogni sotto-attività ha un'icona 💬 (con il numero di commenti). Un tocco apre e richiude l'elenco.
+  - **⋮⋮ Riordino**: trascina la maniglia a sinistra per cambiare l'ordine.
+- **📈 Track progress** (accanto a Subtasks): per i task grossi. I sotto-task diventano **passi** con stato (da fare / in corso / in attesa / fatto), data e promemoria facoltativi, "aspetto chi" e commenti. Compare una barra di avanzamento a segmenti e la percentuale (anche sulla card). La scheda **Activity** è il diario automatico del task (passi, stati, scadenze, tuoi commenti), raggruppato per giorno. **Stop tracking** riporta i passi a sotto-task (si perdono stato, date e promemoria; il diario resta).
 - **Tag**: uno o più per ciascun campo (sezione 4).
 - **Delete item**: elimina l'elemento (chiede conferma).
 

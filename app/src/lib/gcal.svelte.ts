@@ -7,7 +7,7 @@
 import { store, toLocalInput } from './store.svelte'
 import { ALL_SCOPES, forgetToken, getToken, hasSession, revokeToken } from './google'
 import { cloud } from './cloud.svelte'
-import type { Reminder, Task } from './types'
+import type { Reminder, Step, Task } from './types'
 
 // Endpoint dell'API Calendar v3 e nome del calendario creato dall'app.
 const API = 'https://www.googleapis.com/calendar/v3'
@@ -132,12 +132,12 @@ class GCal {
   }
 
   // Costruisce l'evento Google per un reminder (orario, durata 15 min, ricorrenza, popup a 0 minuti). Titolo generico a meno che l'utente abbia attivato 'Show task titles'.
-  private buildEvent(t: Task, r: Reminder, tz: string) {
+  private buildEvent(t: Task, r: Reminder, tz: string, step?: Step) {
     const end = toLocalInput(new Date(new Date(r.at).getTime() + 15 * 60000))
     return {
       id: eventId(r),
       // Calendar text is readable by Google: keep it generic unless the user opted in.
-      summary: this.showTitles ? '🔔 ' + t.title : '🔔 To-do reminder',
+      summary: this.showTitles ? '🔔 ' + t.title + (step ? ' — ' + step.text : '') : '🔔 To-do reminder',
       description: this.showTitles ? '' : 'Open the to-do app to see the details.',
       start: { dateTime: r.at + ':00', timeZone: tz },
       end: { dateTime: end + ':00', timeZone: tz },
@@ -188,6 +188,13 @@ class GCal {
           const ev = this.buildEvent(t, r, tz)
           desired.set(ev.id, { sig: JSON.stringify(ev), ev })
         }
+      }
+      for (const s of store.steps) { // promemoria dei passi
+        const r = s.reminder
+        const t = store.tasks.find((x) => x.id === s.taskId)
+        if (!r || r.fired || !t || t.done || s.status === 'done') continue
+        const ev = this.buildEvent(t, r, tz, s)
+        desired.set(ev.id, { sig: JSON.stringify(ev), ev })
       }
       const base = '/calendars/' + encodeURIComponent(calId) + '/events'
       for (const [id, d] of desired) {
