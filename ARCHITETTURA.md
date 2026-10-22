@@ -168,6 +168,14 @@ Esporta `store.syncEntities()` cifrato con una passphrase scelta al momento (PBK
 
 Le voci sono record della tabella `matrix` (schema v5), una per voce, con `projectId`, quadrante `q` ed eventuale `taskId`. Sono sincronizzate (`syncEntities`/`applySync`/`wipeAll`/`deleteProject`) e nei backup. Un record per voce permette di unire modifiche a voci diverse fatte su dispositivi diversi. Cancellando un task spariscono le sue voci. La migrazione v5 sposta le vecchie voci dalle preferenze `p:eisenhower:<listId>` nella tabella. Il Pomodoro e MIT · 1-3-5 restano preferenze locali, non sincronizzate.
 
+### 3.8a-bis Analisi delle cause radice (`Rca.svelte`, `rcalayout.ts`, `rcaexport.ts`, `rcatables.ts`)
+
+Tool "Root cause" (scheda in `Tools.svelte`). Ogni analisi è un record della tabella `rca` (schema v6) con `projectId`, `kind` (`whys`, `fishbone`, `faulttree`, `isnot`, `pareto`), `title`, `taskId` opzionale (task indagato) e i dati: per i diagrammi ad albero un array `nodes` (`RcaNode`: `parentId`, `text`, `color`, `cause` = causa radice, `out` = ramo scartato, `gate` = AND/OR del fault tree, `taskId` = task di azione correttiva), per Is/Is-Not la mappa `grid`, per il Pareto l'array `items`. Un record per analisi: sincronizzato (`syncEntities`/`applySync`/`wipeAll`/`deleteProject`) e nei backup; cancellando un task si scollega soltanto (l'analisi resta). `CardDetail.svelte` mostra le analisi collegate e crea un 5 Whys dal task (`store.openRca`).
+
+- **Struttura guidata**: `rcalayout.ts` (puro, testato) trasforma i nodi in rettangoli e linee già posizionati: albero orizzontale (5 Whys), lisca di pesce con categorie alternate sopra/sotto e cause rientrate, albero verticale con porte (fault tree). L'utente aggiunge, scrive e sposta i nodi (trascinamento = cambio di padre); il disegno si riordina da solo. Il testo va a capo con una funzione di misura iniettata (canvas nel browser).
+- **Rami scartati e percorso**: un nodo con `out` e tutto ciò che sta sotto sono grigi e tratteggiati, con ✕ sul tratto interrotto; i tratti che portano a una causa radice (★) non scartata sono verdi.
+- **Esportazione** (`rcaexport.ts`): lo stesso layout produce SVG (base di PNG, via canvas, e PDF, pagina con JPEG) e PPTX con forme native (rettangoli, linee a mano libera) costruito a mano con `zip.ts`, quindi modificabile in PowerPoint. Is/Is-Not e Pareto esportano PNG/PDF (`buildIsNotSvg`, `buildParetoSvg`); `rcatables.ts` contiene righe/colonne di Is/Is-Not e il calcolo del Pareto.
+
 ### 3.8b Quaderno note (`Notes.svelte`, `notehtml.ts`, `noteexport.ts`)
 
 Ogni lista ha un quaderno stile OneNote: **sezioni** (`noteSections`) che contengono **pagine** (`notes`, con `html`). Sono tabelle IndexedDB (schema v3) e record sincronizzati/inclusi nei backup come gli altri (`syncEntities`/`applySync`/`wipeAll`/`deleteProject` nello store).

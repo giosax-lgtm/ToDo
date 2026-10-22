@@ -177,6 +177,38 @@ export interface MatrixItem {
   taskId?: string
 }
 
+// Un nodo di un'analisi delle cause radice (RCA). parentId null = radice (problema / effetto). cause = marcato come causa radice; taskId = task di azione correttiva creato da questo nodo.
+export interface RcaNode {
+  id: string
+  parentId: string | null
+  text: string
+  color?: string // chiave di colors.ts
+  cause?: boolean
+  out?: boolean // ramo scartato (ipotesi smentita): il nodo e tutto cio' che sta sotto vengono mostrati come strada interrotta
+  gate?: 'and' | 'or' // solo fault tree: porta che unisce i figli (default 'or')
+  taskId?: string
+}
+
+// Una riga del PARETO: causa e quante volte si e' verificata.
+export interface RcaItem {
+  id: string
+  text: string
+  n: number
+}
+
+// Un'ANALISI RCA ('whys' = 5 Perche', 'fishbone' = Ishikawa, 'faulttree' = albero dei guasti, 'isnot' = tabella E'/Non E', 'pareto' = grafico di Pareto). I nodi stanno tutti nello stesso record, che si sincronizza e si salva nei backup come gli altri. taskId = task che l'analisi indaga.
+export interface Rca {
+  id: string
+  projectId: string
+  kind: 'whys' | 'fishbone' | 'faulttree' | 'isnot' | 'pareto'
+  title: string
+  taskId?: string
+  nodes: RcaNode[] // diagrammi ad albero; vuoto per 'isnot' e 'pareto'
+  grid?: Record<string, string> // 'isnot': testo delle celle, chiave "<riga>.<colonna>" (colonne is / not / diff)
+  items?: RcaItem[] // 'pareto': cause con conteggio
+  updated: number
+}
+
 export interface NoteSection {
   id: string
   projectId: string

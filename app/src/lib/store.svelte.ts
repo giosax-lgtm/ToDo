@@ -9,7 +9,7 @@ import { SvelteMap } from 'svelte/reactivity'
 import { db } from './db'
 import { COLOR_KEYS } from './colors'
 import { descPlain } from './desc'
-import type { Column, Field, FieldOption, Group, LogEntry, MatrixItem, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Step, StepStatus, Task, View, ViewFilter, ViewSort } from './types'
+import type { Column, Field, FieldOption, Group, LogEntry, MatrixItem, NoteBox, NotePage, NoteSection, NotesWin, Project, Rca, RcaItem, RcaNode, Repeat, Step, StepStatus, Task, View, ViewFilter, ViewSort } from './types'
 
 // Genera un id univoco (UUID) per nuove entita'.
 const uid = () => crypto.randomUUID()
@@ -103,6 +103,7 @@ class AppStore {
   steps = $state<Step[]>([])
   logs = $state<LogEntry[]>([])
   matrix = $state<MatrixItem[]>([])
+  rcas = $state<Rca[]>([])
   currentProjectId = $state('')
   currentViewId = $state('')
   draft = $state<View>(newView('', 'Default')) // working copy of the current view
@@ -164,7 +165,7 @@ class AppStore {
   // Rilegge tutte le tabelle da IndexedDB nello stato in memoria, riparando dati vecchi (order mancante, reminders assenti). Chiamata da init, applySync e wipeAll.
   /** (Re)read all data tables from IndexedDB into memory. */
   private async loadTables() {
-    const [projects, columns, tasks, fields, options, views, notes, noteSections, steps, logs, matrix] = await Promise.all([
+    const [projects, columns, tasks, fields, options, views, notes, noteSections, steps, logs, matrix, rcas] = await Promise.all([
       db.projects.toArray(),
       db.columns.toArray(),
       db.tasks.toArray(),
@@ -176,6 +177,7 @@ class AppStore {
       db.steps.toArray(),
       db.logs.toArray(),
       db.matrix.toArray(),
+      db.rca.toArray(),
     ])
     this.projects = projects.sort((a, b) => a.order - b.order)
     this.columns = columns.map((c, i) => ({ ...c, order: c.order ?? i }))
@@ -188,6 +190,7 @@ class AppStore {
     this.steps = steps
     this.logs = logs
     this.matrix = matrix
+    this.rcas = rcas
   }
 
   // Avvio dello store (chiamato da App.svelte): carica preferenze e dati, crea i dati iniziali se il database e' vuoto, assicura le viste per ogni lista, ripristina lista e vista dell'ultima sessione.
@@ -286,13 +289,14 @@ class AppStore {
     add('steps', this.steps)
     add('logs', this.logs)
     add('matrix', this.matrix)
+    add('rca', this.rcas)
     return out
   }
 
   // Applica a IndexedDB le modifiche arrivate dalla sync o da un import (dato null = cancella), poi ricarica lo stato, rigenera le viste mancanti e corregge selezione/task aperto se spariti. Chiamata da cloud.run() e backup.importBackup().
   /** Write remote changes to IndexedDB (data === null deletes) and refresh the in-memory state. */
   async applySync(changes: Map<string, unknown | null>) {
-    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections, steps: db.steps, logs: db.logs, matrix: db.matrix }
+    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections, steps: db.steps, logs: db.logs, matrix: db.matrix, rca: db.rca }
     const put: Record<string, unknown[]> = {}
     const del: Record<string, string[]> = {}
     for (const [key, data] of changes) {
@@ -317,8 +321,8 @@ class AppStore {
   // Cancella tutti i dati locali (non le preferenze). Usata da backup.importBackup() e da cloud.join() su un dispositivo nuovo.
   /** Remove all local data (used when joining an existing cloud vault from a fresh device). */
   async wipeAll() {
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix], async () => {
-      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear(), db.steps.clear(), db.logs.clear(), db.matrix.clear()])
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix, db.rca], async () => {
+      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear(), db.steps.clear(), db.logs.clear(), db.matrix.clear(), db.rca.clear()])
     })
     await this.loadTables()
   }
@@ -715,8 +719,10 @@ class AppStore {
     this.steps = this.steps.filter((s) => s.projectId !== id)
     this.logs = this.logs.filter((l) => l.projectId !== id)
     this.matrix = this.matrix.filter((m) => m.projectId !== id)
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix], async () => {
+    this.rcas = this.rcas.filter((r) => r.projectId !== id)
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix, db.rca], async () => {
       await db.matrix.where('projectId').equals(id).delete()
+      await db.rca.where('projectId').equals(id).delete()
       await db.steps.where('projectId').equals(id).delete()
       await db.logs.where('projectId').equals(id).delete()
       await db.projects.delete(id)
@@ -1118,6 +1124,13 @@ class AppStore {
     this.logs = this.logs.filter((l) => l.taskId !== id)
     this.matrix = this.matrix.filter((m) => m.taskId !== id)
     if (this.openTaskId === id) this.openTaskId = null
+    for (const r of this.rcas) {
+      // Le analisi RCA restano: si scollega solo il task cancellato (dall'analisi e dai suoi nodi azione).
+      if (r.taskId !== id && !r.nodes.some((n) => n.taskId === id)) continue
+      if (r.taskId === id) delete r.taskId
+      for (const n of r.nodes) if (n.taskId === id) delete n.taskId
+      await db.rca.put(plain(r))
+    }
     await db.transaction('rw', db.tasks, db.steps, db.logs, db.matrix, async () => {
       await db.matrix.where('taskId').equals(id).delete()
       await db.tasks.delete(id)
@@ -1144,6 +1157,45 @@ class AppStore {
   async removeMatrixItem(id: string) {
     this.matrix = this.matrix.filter((m) => m.id !== id)
     await db.matrix.delete(id)
+  }
+
+  // ---------- analisi delle cause radice (RCA) ----------
+  // Analisi della lista corrente, in ordine di creazione (stabile mentre si modifica). Usata da Rca.svelte e CardDetail.svelte.
+  rcaList = $derived(this.rcas.filter((r) => r.projectId === this.currentProjectId))
+  // Crea un'analisi con i nodi iniziali: radice = problema/effetto; per il fishbone anche le 6 categorie classiche (modificabili).
+  async addRca(kind: Rca['kind'], title: string, taskId?: string): Promise<Rca> {
+    const tree = kind === 'whys' || kind === 'fishbone' || kind === 'faulttree'
+    const root: RcaNode = { id: uid(), parentId: null, text: title, color: kind === 'whys' ? 'yellow' : 'red' }
+    const nodes: RcaNode[] = tree ? [root] : []
+    if (kind === 'fishbone') {
+      const cats: [string, string][] = [['Method', 'blue'], ['Machine', 'purple'], ['Material', 'green'], ['People', 'pink'], ['Measurement', 'yellow'], ['Environment', 'brown']]
+      for (const [text, color] of cats) nodes.push({ id: uid(), parentId: root.id, text, color })
+    }
+    const r: Rca = { id: uid(), projectId: this.currentProjectId, kind, title, nodes, updated: Date.now(), ...(taskId ? { taskId } : {}) }
+    this.rcas.push(r)
+    await db.rca.put(plain(r))
+    return r
+  }
+  // Aggiorna titolo/collegamento/nodi di un'analisi (taskId null = scollega) e ne salva lo stato.
+  async updateRca(id: string, patch: { title?: string; taskId?: string | null; nodes?: RcaNode[]; grid?: Record<string, string>; items?: RcaItem[] }) {
+    const r = this.rcas.find((x) => x.id === id)
+    if (!r) return
+    const { taskId, ...rest } = patch
+    Object.assign(r, rest, { updated: Date.now() })
+    if (taskId === null) delete r.taskId
+    else if (taskId) r.taskId = taskId
+    await db.rca.put(plain(r))
+  }
+  async removeRca(id: string) {
+    this.rcas = this.rcas.filter((r) => r.id !== id)
+    await db.rca.delete(id)
+  }
+  // Apre il tool RCA su un'analisi (da CardDetail): chiude il dettaglio del task e mostra Tools.
+  openRca(id: string) {
+    this.setPref('tool', 'rca')
+    this.setPref('rcaId', id)
+    this.openTaskId = null
+    this.toolsOpen = true
   }
 
   // ---------- tracciamento (passi + diario) ----------

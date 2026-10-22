@@ -23,6 +23,13 @@
   let newField = $state('')
   let openSub = $state<string | null>(null) // sotto-task con i commenti aperti
 
+  // Analisi RCA collegate a questo task, e creazione di una nuova (5 Perche') con il titolo del task come problema; la apre nel tool.
+  const rcas = $derived(store.rcas.filter((r) => r.taskId === task.id))
+  async function newRca() {
+    const r = await store.addRca('whys', task.title, task.id)
+    store.openRca(r.id)
+  }
+
   // Scorciatoia: applica una modifica parziale al task aperto (store.updateTask).
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p)
 
@@ -133,6 +140,15 @@
     </div>
 
     <Reminders {task} />
+
+    <div class="block rca-block">
+      <span class="lbl label-row"><span>Root cause analysis</span>
+        <button class="mini" type="button" title="Create a root cause analysis linked to this item" onclick={newRca}>🐟 New analysis</button>
+      </span>
+      {#each rcas as r (r.id)}
+        <div class="rca-plan-row"><button class="chip" onclick={() => store.openRca(r.id)}>{r.kind === 'whys' ? '5 Whys' : r.kind === 'fishbone' ? 'Fishbone' : 'Fault tree'} · {r.title}</button></div>
+      {/each}
+    </div>
 
     <div class="block">
       <span class="lbl">Description</span>

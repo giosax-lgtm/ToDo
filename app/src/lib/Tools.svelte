@@ -10,6 +10,7 @@
   import Eisenhower from './Eisenhower.svelte'
   import Pomodoro from './Pomodoro.svelte'
   import Mit from './Mit.svelte'
+  import Rca from './Rca.svelte'
   import Guides from './Guides.svelte'
   import type { Component } from 'svelte'
 
@@ -17,6 +18,7 @@
     { id: 'eisenhower', label: 'Eisenhower', icon: '▦', comp: Eisenhower, title: 'Eisenhower Matrix — choose priorities' },
     { id: 'mit', label: 'MIT · 1-3-5', icon: '★', comp: Mit, title: 'MIT and the 1-3-5 rule — limit priorities' },
     { id: 'pomodoro', label: 'Pomodoro', icon: '🍅', comp: Pomodoro, title: 'Pomodoro — deep work timer' },
+    { id: 'rca', label: 'Root cause', icon: '🐟', comp: Rca, title: 'Root cause analysis' },
     { id: 'guides', label: 'Guide for productivity', icon: '📖', comp: Guides, title: 'Guide for productivity' },
   ]
 

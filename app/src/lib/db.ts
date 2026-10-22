@@ -3,7 +3,7 @@
 // I tipi delle righe sono in lib/types.ts. Cambiare lo schema richiede un nuovo this.version(n) con la migrazione.
 
 import Dexie, { type EntityTable } from 'dexie'
-import type { Column, Field, FieldOption, LogEntry, MatrixItem, NotePage, NoteSection, Project, Setting, Step, Task, View } from './types'
+import type { Column, Field, FieldOption, LogEntry, MatrixItem, NotePage, NoteSection, Project, Rca, Setting, Step, Task, View } from './types'
 
 // Sottoclasse Dexie che dichiara le tabelle tipizzate (una per entita' di lib/types.ts).
 class TodoDB extends Dexie {
@@ -19,8 +19,9 @@ class TodoDB extends Dexie {
   steps!: EntityTable<Step, 'id'>
   logs!: EntityTable<LogEntry, 'id'>
   matrix!: EntityTable<MatrixItem, 'id'>
+  rca!: EntityTable<Rca, 'id'>
 
-  // Nome del database e schema (indici). v1: tabelle base; v2: aggiunge 'views'; v3: aggiunge 'notes' e 'noteSections' (quaderno note); v4: aggiunge 'steps' e 'logs' (tracciamento dei task); v5: aggiunge 'matrix' (matrice di Eisenhower). Solo i campi indicizzati sono elencati; gli altri sono memorizzati comunque.
+  // Nome del database e schema (indici). v1: tabelle base; v2: aggiunge 'views'; v3: aggiunge 'notes' e 'noteSections' (quaderno note); v4: aggiunge 'steps' e 'logs' (tracciamento dei task); v5: aggiunge 'matrix' (matrice di Eisenhower); v6: aggiunge 'rca' (analisi delle cause radice). Solo i campi indicizzati sono elencati; gli altri sono memorizzati comunque.
   constructor() {
     super('todo-slack')
     this.version(1).stores({
@@ -47,6 +48,7 @@ class TodoDB extends Dexie {
       await tx.table('matrix').bulkPut(rows)
       await tx.table('settings').bulkDelete(keys)
     })
+    this.version(6).stores({ rca: 'id, projectId, taskId' })
   }
 }
 
