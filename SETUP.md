@@ -63,10 +63,11 @@ Scegli **una** opzione (HTTPS incluso).
 3. **Settings → Pages → Source: GitHub Actions**. L'URL sarà `https://<utente>.github.io/<repo>/`.
    (I repo privati su Pages richiedono un piano a pagamento: usa un repo pubblico oppure Cloudflare.)
 
-**Cloudflare Pages** (gratis, repo privato ok)
-1. `cd app && npm run build`.
-2. dash.cloudflare.com → **Workers & Pages → Create → Pages → Upload assets** → carica `app/dist`.
-3. L'URL sarà `https://<nome>.pages.dev`.
+**Cloudflare Pages** (gratis, repo privato ok): due modi
+- **Automatico da GitHub (consigliato)**: ogni `git push` ripubblica da solo. Procedura completa in **B6**.
+- **Manuale**: `cd app && npm run build`, poi dash.cloudflare.com → **Workers & Pages → Create → Pages → Upload assets** → carica `app/dist`. Non si può convertire poi nel modo automatico: per cambiare modo serve un nuovo progetto.
+
+In entrambi i casi l'URL sarà `https://<nome>.pages.dev`.
 
 Annota l'URL: serve in C1 (come origine autorizzata).
 
@@ -75,7 +76,8 @@ Segui la sezione **Comune (C1, C2)** qui sotto.
 
 ## B2b. Aggiornare la versione online
 - **GitHub Pages**: fai `git push` sul branch `main`; il workflow ricostruisce e ripubblica da solo (1-2 minuti).
-- **Cloudflare Pages**: `cd app && npm run build`, poi ricarica la cartella `app/dist` su Cloudflare.
+- **Cloudflare Pages (collegato a GitHub, B6)**: `git push` su `main`; Cloudflare ricostruisce e ripubblica da solo.
+- **Cloudflare Pages (manuale)**: `cd app && npm run build`, poi ricarica la cartella `app/dist` su Cloudflare.
 - Sui dispositivi: apri l'app (con internet) e chiudila/riaprila una o due volte; l'app si aggiorna da sola. Se non cambia, ricarica con Ctrl+F5 (PC).
 
 ## B3. Installare su PC
@@ -92,6 +94,49 @@ Apri l'URL pubblicato in Chrome/Edge e installa come in **A2** (stessi passi, ma
 2. Calendar → Impostazioni → *To-Do Reminders* → **Notifiche attive** (l'app imposta già un avviso all'ora dell'evento).
 3. **Test importante:** crea un reminder tra 2 minuti, **deseleziona** il calendario nella lista e verifica che la notifica arrivi lo stesso. Se non arriva, lascia il calendario visibile con un colore discreto.
 4. Disattiva il risparmio energetico aggressivo per Google Calendar se le notifiche ritardano.
+
+## B6. Passare da GitHub Pages a Cloudflare Pages, con repo GitHub privato (tutto gratis)
+
+**Come funziona.** Il codice resta su GitHub, in un repo **privato** (gratis: GitHub Free ammette repo privati illimitati; a pagamento è solo *GitHub Pages* da repo privato). La pubblicazione passa a **Cloudflare Pages**, che legge il repo tramite la sua app GitHub e ricostruisce il sito a ogni `git push`. Cloudflare non ospita il codice: custodisce solo il sito costruito.
+
+**Attenzione: l'indirizzo cambia e i dati nel browser sono legati all'indirizzo.** `https://<utente>.github.io` e `https://<nome>.pages.dev` sono archivi separati: sul nuovo sito l'app parte vuota finché non ripristini i dati. Per questo il vecchio sito si spegne solo alla fine. Se hai un dominio tuo, usalo: l'indirizzo non cambierà mai più, qualunque hosting userai in futuro.
+
+### Fase 1: prepara (il sito GitHub continua a funzionare)
+1. **Backup**: ⚙ Settings → *Backup* → *Export encrypted backup* e salva il file. Verifica di avere passphrase del sync e recovery key.
+2. **Cloudflare**: dash.cloudflare.com → **Workers & Pages → Create → Pages → Connect to Git** → autorizza l'app GitHub **solo sul repo del progetto** → scegli il repo.
+3. Impostazioni di build:
+
+   | Campo | Valore |
+   |---|---|
+   | Production branch | `main` |
+   | Root directory | `app` |
+   | Build command | `npm run build` |
+   | Build output directory | `dist` |
+   | Variabile d'ambiente | `NODE_VERSION` = `22` |
+
+   Premi *Save and Deploy*. L'URL sarà `https://<nome>.pages.dev` (con un dominio tuo: *Custom domains* nel progetto).
+4. **Google Cloud Console** → Credenziali → il tuo ID client → *Origini JavaScript autorizzate*: **aggiungi** il nuovo indirizzo (solo origine, senza percorso). Non togliere ancora quella di GitHub.
+5. **Worker di login** (C3): in `worker/wrangler.toml` aggiungi il nuovo indirizzo a `ALLOWED_ORIGINS` (separato da virgola, senza togliere quello vecchio), poi da `worker/` esegui `npx wrangler deploy`.
+
+### Fase 2: prova il nuovo sito (in parallelo al vecchio)
+1. Apri l'indirizzo `pages.dev` in Chrome. L'app è vuota: è normale.
+2. ⚙ Settings → incolla Client ID e Sign-in server → *Connect*. Poi *Encrypted sync* → *Unlock existing vault* con la passphrase: i dati tornano dal cloud. In alternativa *Import backup*.
+3. Controlla: task e note presenti, sync che funziona, reminder su Calendar, login che non chiede di riconnettersi dopo un'ora.
+4. Installa la PWA dal nuovo indirizzo su PC e Android (installa e prova prima di togliere la vecchia).
+5. Per qualche giorno usa il nuovo sito e lascia il vecchio come rete di sicurezza.
+
+### Fase 3: spegni GitHub Pages e rendi privato il repo (solo quando tutto funziona)
+1. Elimina `.github/workflows/deploy.yml` (altrimenti fallirebbe a ogni push) e fai commit e push.
+2. Su GitHub: repo → **Settings → Pages**: disattiva la pubblicazione. Poi **Settings → General → Danger Zone → Change visibility → Make private**. Da riga di comando: `gh repo edit <utente>/<repo> --visibility private --accept-visibility-change-consequences`.
+3. Verifica che Cloudflare continui a costruire: fai un piccolo push e controlla il deployment. Se l'accesso al repo è stato revocato, ripeti l'autorizzazione dell'app GitHub.
+4. In Google Cloud Console e in `ALLOWED_ORIGINS` puoi togliere l'indirizzo `github.io`.
+5. Svuota i dati del vecchio sito e disinstalla la vecchia PWA, per non confonderti.
+
+### Cose da sapere
+- **Il codice resta visibile a chi apre il sito**: un repo privato nasconde il sorgente, non il JavaScript servito al browser. I tuoi dati non sono comunque esposti (stanno nel browser e cifrati su Drive).
+- `pages.dev` è raggiungibile da chiunque abbia l'URL. Proteggerlo con Cloudflare Access è possibile ma può rompere service worker, installazione PWA e uso offline: sconsigliato.
+- La cronologia Git è stata pubblica: fork e cloni già fatti restano. Nel repo non risultano segreti (solo il Client ID Google, che non è un segreto).
+- Rollback: finché non fai la Fase 3 puoi tornare semplicemente al vecchio indirizzo.
 
 ---
 

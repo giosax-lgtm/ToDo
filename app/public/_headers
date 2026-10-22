@@ -1,0 +1,12 @@
+# Intestazioni HTTP lette da Cloudflare Pages (GitHub Pages le ignora). Evitano che il browser tenga in cache il service worker e la pagina, cosi' gli aggiornamenti arrivano subito.
+/index.html
+  Cache-Control: no-cache
+/sw.js
+  Cache-Control: no-cache
+/registerSW.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
