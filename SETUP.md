@@ -115,6 +115,8 @@ Apri l'URL pubblicato in Chrome/Edge e installa come in **A2** (stessi passi, ma
    | Variabile d'ambiente | `NODE_VERSION` = `22` |
 
    Premi *Save and Deploy*. L'URL sarà `https://<nome>.pages.dev` (con un dominio tuo: *Custom domains* nel progetto).
+
+   **Se la dashboard mostra invece la schermata "Set up your application"** (Cloudflare ora crea un Worker con file statici): lascia `Build command` = `npm run build`, `Deploy command` = `npx wrangler deploy`, e in *Advanced settings* `Path` = `/app`. Il file `app/wrangler.jsonc` dice a wrangler di pubblicare `dist`; il *Project name* deve coincidere con il campo `name` di quel file (`todo`). `NODE_VERSION` = `22` si aggiunge nelle variabili di build. L'URL sarà `https://<nome>.<tuo-account>.workers.dev`.
 4. **Google Cloud Console** → Credenziali → il tuo ID client → *Origini JavaScript autorizzate*: **aggiungi** il nuovo indirizzo (solo origine, senza percorso). Non togliere ancora quella di GitHub.
 5. **Worker di login** (C3): in `worker/wrangler.toml` aggiungi il nuovo indirizzo a `ALLOWED_ORIGINS` (separato da virgola, senza togliere quello vecchio), poi da `worker/` esegui `npx wrangler deploy`.
 
