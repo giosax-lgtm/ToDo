@@ -23,6 +23,7 @@
   import Settings from './lib/Settings.svelte'
   import Notes from './lib/Notes.svelte'
   import Tools from './lib/Tools.svelte'
+  import Guide from './lib/Guide.svelte'
   import { pomodoro, PHASE_LABEL } from './lib/focustimer.svelte'
   import { gcal } from './lib/gcal.svelte'
   import { cloud } from './lib/cloud.svelte'
@@ -168,6 +169,7 @@
     <Alerts />
     <Notes />
     {#if store.settingsOpen}<Settings />{/if}
+    {#if store.guideOpen}<Guide />{/if}
     {#if store.openTask}<CardDetail task={store.openTask} />{/if}
   </div>
 {:else}

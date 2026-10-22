@@ -1,5 +1,5 @@
 <!--
-  BARRA LATERALE: elenco delle liste (progetti) con creazione, rinomina, eliminazione; indicatore dello stato di sincronizzazione Google e pulsante Impostazioni.
+  BARRA LATERALE: elenco delle liste (progetti) con creazione, rinomina, eliminazione; indicatore dello stato di sincronizzazione Google e pulsanti Notes e Settings (sulla stessa riga), Tools e Guide (guida in-app), anch'essi sulla stessa riga.
   Su mobile si apre/chiude con il pulsante menu di App.svelte (prop 'open'). Ridimensionabile con resizer.ts. Dati da store.svelte.ts;
   lo stato di sync viene da cloud.svelte.ts e gcal.svelte.ts. Click sull'indicatore o su Settings apre Settings.svelte (store.settingsOpen).
 -->
@@ -71,9 +71,14 @@
     <button class="side-btn sync {sync.level}" title={sync.tip} onclick={() => (store.settingsOpen = true)}>
       <span class="dot"></span>{sync.text}
     </button>
-    <button class="side-btn" class:tools-on={store.toolsOpen} onclick={() => { store.toolsOpen = true; open = false }}>🧰 Tools</button>
-    <button class="side-btn" onclick={() => { store.setNotesWin({ open: true, min: false }); open = false }}>📝 Notes</button>
-    <button class="side-btn" onclick={() => (store.settingsOpen = true)}>⚙ Settings</button>
+    <div class="side-row">
+      <button class="side-btn" onclick={() => { store.setNotesWin({ open: true, min: false }); open = false }}>📝 Notes</button>
+      <button class="side-btn" onclick={() => (store.settingsOpen = true)}>⚙ Settings</button>
+    </div>
+    <div class="side-row">
+      <button class="side-btn" class:tools-on={store.toolsOpen} onclick={() => { store.toolsOpen = true; open = false }}>🧰 Tools</button>
+      <button class="side-btn" onclick={() => { store.guideOpen = true; open = false }}>📖 Guide</button>
+    </div>
     <div class="side-version">v{__APP_VERSION__}</div>
   </div>
 </nav>

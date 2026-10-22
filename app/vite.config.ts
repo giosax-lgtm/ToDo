@@ -36,6 +36,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // the in-app guide screenshots (public/guide) are cached too, so the guide works offline
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webp}'],
         navigateFallback: 'index.html',
         // never cache Google API calls
         navigateFallbackDenylist: [/^\/oauth/],

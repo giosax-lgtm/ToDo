@@ -182,6 +182,9 @@ Ogni lista ha un quaderno stile OneNote: **sezioni** (`noteSections`) che conten
 - **Ridimensionamento immagini e disegno**: cliccando un `<img>` si seleziona (`selImg`/`selRect`) e una maniglia cambia gli attributi `width`/`height` mantenendo le proporzioni. Il disegno è un `<canvas>` 1000x600 in un riquadro sopra la finestra; `padInsert()` ritaglia l'area tracciata e la inserisce come PNG (`placeImage`), quindi segue tutta la pipeline delle immagini (sync, esportazioni).
 - Limiti noti: conflitti = l'ultimo che scrive vince (per l'intera pagina).
 
+### 3.8c Guida in-app (`Guide.svelte`)
+Pulsante **📖 Guide** in fondo alla barra laterale (`store.guideOpen`): modale con elenco capitoli a sinistra e testo + schermate a destra. I capitoli sono l'array `CHAPTERS` in `Guide.svelte` (testo inglese, immagini per nome file). Le schermate sono `app/public/guide/*.webp`, create con dati di esempio (lista "Website relaunch") e incluse nella cache del service worker (`globPatterns` in `vite.config.ts`), quindi la guida funziona anche offline. Se l'interfaccia cambia molto, vanno rifatte: avvia `npm run dev`, riempi una lista di esempio, cattura le viste (1600x900; pannello dettaglio a parte) e salva in WebP larghi al massimo 1280 px.
+
 ### 3.8 Stile e temi (`app.css`)
 
 - Un solo foglio di stile globale.

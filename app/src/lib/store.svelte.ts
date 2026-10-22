@@ -109,6 +109,7 @@ class AppStore {
   openTaskId = $state<string | null>(null)
   alerts = $state<ReminderAlert[]>([])
   settingsOpen = $state(false)
+  guideOpen = $state(false) // guida in-app (Guide.svelte), finestra modale
   toolsOpen = $state(false) // sezione Tools (Eisenhower, Pomodoro, MIT, guide) al posto della vista della lista
   private settings = new SvelteMap<string, unknown>()
 

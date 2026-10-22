@@ -8,12 +8,14 @@ Per installare l'app, collegare Google e pubblicarla online vedi [SETUP.md](SETU
 
 ## 1. Primi passi: la schermata
 
-- **Barra laterale (sinistra)**: le tue **liste** (es. "Personal"), il pulsante **+** per crearne di nuove, l'indicatore di sincronizzazione e **⚙ Settings**. Sul telefono si apre con **☰**. Puoi allargarla o stringerla trascinandone il bordo.
+- **Barra laterale (sinistra)**: le tue **liste** (es. "Personal"), il pulsante **+** per crearne di nuove, l'indicatore di sincronizzazione e in basso **📝 Notes** e **⚙ Settings** (sulla stessa riga), **🧰 Tools** e **📖 Guide**. Sul telefono si apre con **☰**. Puoi allargarla o stringerla trascinandone il bordo.
 - **Barra degli strumenti**: scelta della **vista**, **ricerca**, **Edit view**, **Group by**, filtri.
 - **Area centrale**: le tue colonne con le card (vista *Board*) oppure una tabella (vista *Table*).
 - **Pannello di dettaglio**: si apre a destra quando clicchi un elemento. Anche questo si può allargare trascinandone il bordo.
 
 Al primo avvio trovi già una lista **Personal** con cinque colonne di stato (*Not started, In progress, Blocked, To follow-up, Questions*) e alcune viste pronte.
+
+**📖 Guide** apre dentro l'app una guida in inglese, a capitoli brevi con schermate (clic sull'immagine per ingrandirla), che riassume tutte le funzioni di questo documento.
 
 ## 2. Liste
 
