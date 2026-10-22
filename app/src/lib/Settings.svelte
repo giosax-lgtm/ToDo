@@ -32,7 +32,7 @@
   // Stato locale della sezione Backup: archiviazione persistente concessa (letta al montaggio), passphrase del backup e messaggio di esito.
   const TABS: [string, string][] = [
     ['look', 'Appearance'],
-    ['gcal', 'Calendar'],
+    ['gcal', 'Google'],
     ['backup', 'Backup'],
     ['sync', 'Sync'],
   ]
@@ -149,10 +149,10 @@
 
     {:else if tab === 'gcal'}
     <section>
-      <h3>Google Calendar reminders</h3>
+      <h3>Google account (Calendar + Drive)</h3>
       <small class="muted">
-        Each reminder becomes an event in a separate calendar "To-Do Reminders", so your phone notifies you even when the app is closed.
-        See SETUP.md for how to get the Client ID.
+        One Google sign-in powers two features: <b>Calendar reminders</b> (below) and <b>encrypted sync on Google Drive</b> (Sync tab).
+        The Client ID and sign-in server here are used by both. See SETUP.md for how to get the Client ID.
       </small>
       <label class="srow">OAuth Client ID
         <input type="text" placeholder="123456-abc.apps.googleusercontent.com" value={store.pref('gClientId', '')}
@@ -163,6 +163,10 @@
           onchange={(e) => store.setPref('gAuthUrl', e.currentTarget.value.trim())} />
         <small class="muted">Sign in once and stay signed in (no hourly re-login). Leave empty for the hourly sign-in. See SETUP.md (C3); after changing it, press Disconnect and Connect again.</small>
       </label>
+      <h4>Calendar reminders</h4>
+      <small class="muted">
+        Each reminder becomes an event in a separate calendar "To-Do Reminders", so your phone notifies you even when the app is closed.
+      </small>
       <label class="srow row">
         <span>Show task titles in Google Calendar<br /><small class="muted">Off = generic "To-do reminder" (Google never sees your task text)</small></span>
         <input type="checkbox" checked={store.pref('gShowTitles', false)} onchange={(e) => store.setPref('gShowTitles', e.currentTarget.checked)} />
@@ -210,7 +214,7 @@
       <h3>Encrypted sync (Google Drive)</h3>
       <small class="muted">
         Your data is encrypted on this device (AES-256) before it reaches Google Drive, in a hidden app-only folder.
-        Google cannot read it. Needs the Client ID above (see SETUP.md).
+        Google cannot read it. Uses the Client ID set in the Google tab (see SETUP.md).
       </small>
 
       {#if cloud.recoveryKey}
