@@ -17,8 +17,6 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Il manifest viene richiesto con i cookie: serve se il sito sta dietro Cloudflare Access (SETUP.md, B6).
-      useCredentials: true,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         id: './',

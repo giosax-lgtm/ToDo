@@ -6,5 +6,4 @@ compatibility_date = "2025-01-01"
 [vars]
 GOOGLE_CLIENT_ID = "xxxxxxxx.apps.googleusercontent.com"
 # Origini da cui l'app puo' chiamare il Worker (solo origine, separate da virgola): sito pubblicato e/o localhost.
-# Durante il passaggio a Cloudflare Pages (SETUP.md, B6) aggiungi qui anche https://<nome>.pages.dev, senza togliere la vecchia origine.
 ALLOWED_ORIGINS = "https://<tuo-utente>.github.io,http://localhost:4173"
