@@ -1,7 +1,7 @@
 <!--
   PANNELLO DI DETTAGLIO di un task (si apre a destra sopra il board/tabella, ridimensionabile con resizer.ts). Modifica ogni proprieta' tramite store.updateTask():
   titolo, stato, priorita' (stelle), scadenza, reminder (Reminders.svelte), descrizione, sottotask (o, con il tracciamento attivo, passi + diario: Tracker.svelte), tag (TagPicker.svelte), creazione di nuovi campi tag, eliminazione.
-  Montato da App.svelte quando store.openTask esiste (aperto da Card, TableView, Alerts o dopo la creazione di un task). Si chiude con Esc o click fuori.
+  Montato da App.svelte quando store.openTask esiste (aperto da Card, TableView, Alerts o dopo la creazione di un task). Si chiude solo con il pulsante X.
 -->
 
 <script lang="ts">
@@ -13,6 +13,7 @@
   import Tracker from './Tracker.svelte'
   import Linkify from './Linkify.svelte'
   import Comments from './Comments.svelte'
+  import RichText from './RichText.svelte'
   import type { Subtask, Task } from './types'
 
   let { task }: { task: Task } = $props()
@@ -21,64 +22,9 @@
   let newSub = $state('')
   let newField = $state('')
   let openSub = $state<string | null>(null) // sotto-task con i commenti aperti
-  let imageInput: HTMLInputElement | undefined
 
   // Scorciatoia: applica una modifica parziale al task aperto (store.updateTask).
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p)
-
-  function readDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const fr = new FileReader()
-      fr.onload = () => resolve(String(fr.result ?? ''))
-      fr.onerror = () => reject(new Error('Could not read image'))
-      fr.readAsDataURL(file)
-    })
-  }
-
-  async function attachImages(files: FileList | File[] | null | undefined) {
-    const images = Array.from(files ?? []).filter((f) => f.type.startsWith('image/'))
-    if (!images.length) return
-
-    const chunks = await Promise.all(images.map(async (file) => {
-      const src = await readDataUrl(file)
-      const name = (file.name || 'screenshot').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9 _-]/g, '') || 'screenshot'
-      return `\n\n![${name}](${src})`
-    }))
-
-    const base = task.description.trim()
-    const next = base ? `${base}${chunks.join('')}` : chunks.join('').trimStart()
-    patch({ description: next })
-    if (imageInput) imageInput.value = ''
-  }
-
-  function onPasteImage(e: ClipboardEvent) {
-    const files = e.clipboardData?.files
-    if (files && Array.from(files).some((f) => f.type.startsWith('image/'))) {
-      e.preventDefault()
-      void attachImages(files)
-    }
-  }
-
-  function onDropImages(e: DragEvent) {
-    if (!e.dataTransfer?.files.length) return
-    const fileList = e.dataTransfer.files
-    if (Array.from(fileList).some((f) => f.type.startsWith('image/'))) {
-      e.preventDefault()
-      void attachImages(fileList)
-    }
-  }
-
-  // Nella textarea le immagini incorporate (data:image base64) sono mostrate come "image:N"
-  // per non riempire il campo di codice; al salvataggio il segnaposto torna al data URI originale.
-  const DATA_IMG = /\(data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+\)/g
-  const shortenImages = (s: string) => {
-    let n = 0
-    return s.replace(DATA_IMG, () => `(image:${++n})`)
-  }
-  const restoreImages = (s: string) => {
-    const originals = task.description.match(DATA_IMG) ?? []
-    return s.replace(/\(image:(\d+)\)/g, (m, i) => originals[Number(i) - 1] ?? m)
-  }
 
   // Adatta l'altezza della textarea al contenuto (ricalcolata a ogni digitazione e al cambio del testo).
   function autogrow(node: HTMLTextAreaElement, _text?: string) {
@@ -125,13 +71,11 @@
   // Pannello a tutto schermo (preferenza 'detailMax', ricordata): pulsante ⤢ nell'intestazione, visibile solo su schermi larghi (su telefono il pannello e' gia' a tutta larghezza).
   const maxed = $derived(store.pref('detailMax', false))
 
-  // Chiude il pannello (store.openTaskId = null): Esc, click sullo sfondo o pulsante X.
+  // Chiude il pannello (store.openTaskId = null): solo con il pulsante X (non con Esc o click fuori, che chiudevano il pannello a fine selezione del testo col mouse).
   function close() { store.openTaskId = null }
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
-
-<div class="overlay" role="presentation" onclick={close}>
+<div class="overlay" role="presentation">
   <div class="detail" role="dialog" aria-label="Task details" tabindex="-1" class:maxed style:width={maxed ? '100%' : `min(${store.width('detail', 480)}px, 100%)`} onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
     {#if !maxed}<div class="resizer" role="separator" aria-orientation="vertical" use:resizer={{ key: 'detail', dir: -1, min: 340, max: 1100, fallback: 480 }}></div>{/if}
     <div class="detail-head">
@@ -190,17 +134,10 @@
 
     <Reminders {task} />
 
-    <label class="block">
-      <span class="label-row">
-        <span>Description</span>
-        <button class="mini" type="button" onclick={() => imageInput?.click()}>📎 Add image</button>
-      </span>
-      <input type="file" accept="image/*" multiple hidden bind:this={imageInput} onchange={(e) => void attachImages((e.currentTarget as HTMLInputElement).files)} />
-      <textarea rows="4" use:autogrow={task.description} value={shortenImages(task.description)} onpaste={onPasteImage} ondrop={onDropImages} ondragover={(e) => e.preventDefault()} onchange={(e) => patch({ description: restoreImages(e.currentTarget.value) })}></textarea>
-    </label>
-    {#if /https?:\/\/|!\[[^\]]*\]\((?:data:image|https?:\/\/)/.test(task.description)}
-      <div class="block desc-links"><Linkify text={task.description} /></div>
-    {/if}
+    <div class="block">
+      <span class="lbl">Description</span>
+      <RichText value={task.description} onsave={(v) => patch({ description: v })} />
+    </div>
 
     {#if task.track}
       <Tracker {task} />

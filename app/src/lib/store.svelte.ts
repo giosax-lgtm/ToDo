@@ -8,7 +8,8 @@
 import { SvelteMap } from 'svelte/reactivity'
 import { db } from './db'
 import { COLOR_KEYS } from './colors'
-import type { Column, Field, FieldOption, Group, LogEntry, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Step, StepStatus, Task, View, ViewFilter, ViewSort } from './types'
+import { descPlain } from './desc'
+import type { Column, Field, FieldOption, Group, LogEntry, MatrixItem, NoteBox, NotePage, NoteSection, NotesWin, Project, Repeat, Step, StepStatus, Task, View, ViewFilter, ViewSort } from './types'
 
 // Genera un id univoco (UUID) per nuove entita'.
 const uid = () => crypto.randomUUID()
@@ -101,6 +102,7 @@ class AppStore {
   noteSections = $state<NoteSection[]>([])
   steps = $state<Step[]>([])
   logs = $state<LogEntry[]>([])
+  matrix = $state<MatrixItem[]>([])
   currentProjectId = $state('')
   currentViewId = $state('')
   draft = $state<View>(newView('', 'Default')) // working copy of the current view
@@ -161,7 +163,7 @@ class AppStore {
   // Rilegge tutte le tabelle da IndexedDB nello stato in memoria, riparando dati vecchi (order mancante, reminders assenti). Chiamata da init, applySync e wipeAll.
   /** (Re)read all data tables from IndexedDB into memory. */
   private async loadTables() {
-    const [projects, columns, tasks, fields, options, views, notes, noteSections, steps, logs] = await Promise.all([
+    const [projects, columns, tasks, fields, options, views, notes, noteSections, steps, logs, matrix] = await Promise.all([
       db.projects.toArray(),
       db.columns.toArray(),
       db.tasks.toArray(),
@@ -172,6 +174,7 @@ class AppStore {
       db.noteSections.toArray(),
       db.steps.toArray(),
       db.logs.toArray(),
+      db.matrix.toArray(),
     ])
     this.projects = projects.sort((a, b) => a.order - b.order)
     this.columns = columns.map((c, i) => ({ ...c, order: c.order ?? i }))
@@ -183,6 +186,7 @@ class AppStore {
     this.noteSections = noteSections
     this.steps = steps
     this.logs = logs
+    this.matrix = matrix
   }
 
   // Avvio dello store (chiamato da App.svelte): carica preferenze e dati, crea i dati iniziali se il database e' vuoto, assicura le viste per ogni lista, ripristina lista e vista dell'ultima sessione.
@@ -280,13 +284,14 @@ class AppStore {
     add('noteSections', this.noteSections)
     add('steps', this.steps)
     add('logs', this.logs)
+    add('matrix', this.matrix)
     return out
   }
 
   // Applica a IndexedDB le modifiche arrivate dalla sync o da un import (dato null = cancella), poi ricarica lo stato, rigenera le viste mancanti e corregge selezione/task aperto se spariti. Chiamata da cloud.run() e backup.importBackup().
   /** Write remote changes to IndexedDB (data === null deletes) and refresh the in-memory state. */
   async applySync(changes: Map<string, unknown | null>) {
-    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections, steps: db.steps, logs: db.logs }
+    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections, steps: db.steps, logs: db.logs, matrix: db.matrix }
     const put: Record<string, unknown[]> = {}
     const del: Record<string, string[]> = {}
     for (const [key, data] of changes) {
@@ -311,8 +316,8 @@ class AppStore {
   // Cancella tutti i dati locali (non le preferenze). Usata da backup.importBackup() e da cloud.join() su un dispositivo nuovo.
   /** Remove all local data (used when joining an existing cloud vault from a fresh device). */
   async wipeAll() {
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections, db.steps, db.logs], async () => {
-      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear(), db.steps.clear(), db.logs.clear()])
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix], async () => {
+      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear(), db.steps.clear(), db.logs.clear(), db.matrix.clear()])
     })
     await this.loadTables()
   }
@@ -495,7 +500,7 @@ class AppStore {
     if (t.projectId !== this.currentProjectId) return false
     if (!withDone && !v.showCompleted && t.done) return false
     const s = v.search.trim().toLowerCase()
-    if (s && !(t.title + ' ' + t.description).toLowerCase().includes(s)) return false
+    if (s && !(t.title + ' ' + descPlain(t.description)).toLowerCase().includes(s)) return false
     for (const f of v.filters) {
       if (!f.values.length) continue
       const have = this.valuesOf(t, f.key)
@@ -708,7 +713,9 @@ class AppStore {
     this.noteSections = this.noteSections.filter((n) => n.projectId !== id)
     this.steps = this.steps.filter((s) => s.projectId !== id)
     this.logs = this.logs.filter((l) => l.projectId !== id)
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections, db.steps, db.logs], async () => {
+    this.matrix = this.matrix.filter((m) => m.projectId !== id)
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix], async () => {
+      await db.matrix.where('projectId').equals(id).delete()
       await db.steps.where('projectId').equals(id).delete()
       await db.logs.where('projectId').equals(id).delete()
       await db.projects.delete(id)
@@ -1108,12 +1115,34 @@ class AppStore {
     this.tasks = this.tasks.filter((t) => t.id !== id)
     this.steps = this.steps.filter((s) => s.taskId !== id)
     this.logs = this.logs.filter((l) => l.taskId !== id)
+    this.matrix = this.matrix.filter((m) => m.taskId !== id)
     if (this.openTaskId === id) this.openTaskId = null
-    await db.transaction('rw', db.tasks, db.steps, db.logs, async () => {
+    await db.transaction('rw', db.tasks, db.steps, db.logs, db.matrix, async () => {
+      await db.matrix.where('taskId').equals(id).delete()
       await db.tasks.delete(id)
       await db.steps.where('taskId').equals(id).delete()
       await db.logs.where('taskId').equals(id).delete()
     })
+  }
+
+  // ---------- matrice di Eisenhower ----------
+  // Voci della matrice della lista corrente. Usata da Eisenhower.svelte.
+  matrixItems = $derived(this.matrix.filter((m) => m.projectId === this.currentProjectId))
+  async addMatrixItem(item: Omit<MatrixItem, 'id' | 'projectId'>) {
+    const m: MatrixItem = { id: uid(), projectId: this.currentProjectId, ...item }
+    this.matrix.push(m)
+    await db.matrix.put(plain(m))
+  }
+  // Aggiorna una voce (spostamento di quadrante, collegamento a un task dopo "→ To-do").
+  async updateMatrixItem(id: string, patch: Partial<Pick<MatrixItem, 'q' | 'text' | 'taskId'>>) {
+    const m = this.matrix.find((x) => x.id === id)
+    if (!m) return
+    Object.assign(m, patch)
+    await db.matrix.put(plain(m))
+  }
+  async removeMatrixItem(id: string) {
+    this.matrix = this.matrix.filter((m) => m.id !== id)
+    await db.matrix.delete(id)
   }
 
   // ---------- tracciamento (passi + diario) ----------

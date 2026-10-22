@@ -4,6 +4,6 @@ main = "index.js"
 compatibility_date = "2025-01-01"
 
 [vars]
-GOOGLE_CLIENT_ID = "188390081654-qtjlan309h2vas5ntikleaqgab9da456.apps.googleusercontent.com"
+GOOGLE_CLIENT_ID = "xxxxxxxx.apps.googleusercontent.com"
 # Origini da cui l'app puo' chiamare il Worker (solo origine, separate da virgola): sito pubblicato e/o localhost.
-ALLOWED_ORIGINS = "https://giosax-lgtm.github.io,http://localhost:4173"
+ALLOWED_ORIGINS = "https://<tuo-utente>.github.io,http://localhost:4173"

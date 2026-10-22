@@ -8,6 +8,7 @@
   import { store } from './store.svelte'
   import Pill from './Pill.svelte'
   import Linkify from './Linkify.svelte'
+  import { descHtml } from './desc'
   import type { Task } from './types'
 
   let { task }: { task: Task } = $props()
@@ -70,7 +71,7 @@
     </div>
   {/if}
   {#if task.description && !hidden.includes('description')}
-    <p class="card-desc"><Linkify text={task.description} /></p>
+    <div class="card-desc">{@html descHtml(task.description)}</div>
   {/if}
   {#each tagGroups as g (g.field.id)}
     <div class="tag-row">

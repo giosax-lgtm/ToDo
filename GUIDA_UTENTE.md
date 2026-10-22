@@ -153,7 +153,7 @@ Dalla barra laterale, **🧰 Tools** apre una sezione a schede con strumenti per
 - **Pomodoro**: timer focus / pausa breve / pausa lunga con durate modificabili, suono e notifica a fine fase. Continua anche se cambi scheda; il tempo residuo appare nel titolo della pagina.
 - **Guide for productivity**: guide brevi a sezioni (sistema in 4 passaggi, Pareto 80/20). Per aggiungerne basta un elemento in `GUIDES` di `Guides.svelte`.
 - Per aggiungere un nuovo tool: componente `.svelte` + una riga in `TOOLS` di `Tools.svelte`.
-- Le voci dei tools sono salvate sul dispositivo (preferenze), non sincronizzate su Drive.
+- Le voci della matrice di Eisenhower sono sincronizzate su Drive e incluse nei backup. MIT · 1-3-5 e Pomodoro (durate, contatore) restano sul dispositivo e non vengono sincronizzati.
 
 ## 7. Impostazioni e aspetto (**⚙ Settings**)
 
@@ -223,4 +223,4 @@ I dati vengono **cifrati sul tuo dispositivo** prima di salire su Drive (cartell
 
 **Google mi chiede sempre di riconnettermi.** Il login dura solo 1 ora se manca il "login duraturo". Controlla che in Settings → Sign-in server ci sia l'indirizzo del Worker (SETUP.md, C3), poi premi **Disconnect** e **Connect** e accetta il consenso di Google. Se compare *"Google gave no long-lived login"*, rimuovi "toDo" da myaccount.google.com/permissions e ripeti. Va rifatto **una volta su ogni dispositivo** (anche sulla PWA installata, che ha storage separato dal browser). Se il problema torna dopo circa 7 giorni, l'app Google è in stato "Test": in Google Cloud Console passala a **In produzione**. Dettagli tecnici per la diagnosi nel README.
 
-**Qual è l'indirizzo del Sign-in server?** L'account Cloudflare è **giosax**: l'indirizzo dovrebbe essere `https://todo-auth.giosax.workers.dev` (da incollare in Settings → Sign-in server).
+**Qual è l'indirizzo del Sign-in server?** L'indirizzo ha la forma `https://todo-auth.<tuo-account>.workers.dev` (da incollare in Settings → Sign-in server). Quello esatto lo stampa `npx wrangler deploy` dalla cartella `worker/`.

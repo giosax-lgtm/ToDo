@@ -1,7 +1,7 @@
 <!--
   TOOL "MATRICE DI EISENHOWER": quattro quadranti (urgente/importante). Le voci possono essere task gia' presenti nella lista corrente (collegati: titolo e
   stato "fatto" restano quelli del task) oppure idee libere. Le idee libere NON entrano nella to-do list da sole: il pulsante "→ To-do" le trasforma in task
-  (con priorita' suggerita dal quadrante) e da quel momento restano collegate. Le voci sono salvate per lista come preferenza ('eisenhower:<listId>').
+  (con priorita' suggerita dal quadrante) e da quel momento restano collegate. Le voci sono record della tabella 'matrix' (una per voce, per lista): sincronizzate tra dispositivi e incluse nei backup.
   Trascinamento dei chip tra quadranti (desktop) oppure menu "sposta" (anche su mobile).
 -->
 
@@ -18,9 +18,7 @@
     { q: 4, title: 'Eliminate', sub: 'Not urgent · Not important', hint: 'Time wasters. Drop them.', prio: 1, cls: 'q4' },
   ]
 
-  const key = $derived('eisenhower:' + store.currentProjectId)
-  const items = $derived(store.pref<Item[]>(key, []))
-  const save = (next: Item[]) => store.setPref(key, next.length ? next : undefined)
+  const items = $derived<Item[]>(store.matrixItems)
   const taskOf = (i: Item) => (i.taskId ? store.tasks.find((t) => t.id === i.taskId) : undefined)
   // Una voce collegata a un task che non esiste piu' viene ignorata.
   const live = $derived(items.filter((i) => !i.taskId || taskOf(i)))
@@ -38,22 +36,22 @@
   function addIdea() {
     const s = text.trim()
     if (!s) return
-    save([...items, { id: crypto.randomUUID(), text: s, q: target }])
+    void store.addMatrixItem({ text: s, q: target })
     text = ''
   }
   function addTask() {
     if (!pick) return
-    save([...items, { id: crypto.randomUUID(), text: '', q: target, taskId: pick }])
+    void store.addMatrixItem({ text: '', q: target, taskId: pick })
     pick = ''
   }
-  const move = (id: string, q: Q) => save(items.map((i) => (i.id === id ? { ...i, q } : i)))
-  const remove = (id: string) => save(items.filter((i) => i.id !== id))
+  const move = (id: string, q: Q) => void store.updateMatrixItem(id, { q })
+  const remove = (id: string) => void store.removeMatrixItem(id)
 
   // Idea -> task vero nella lista corrente, con la priorita' suggerita dal quadrante.
   async function promote(i: Item) {
     const t = await store.addTask(i.text)
     await store.updateTask(t.id, { priority: QUADS[i.q - 1].prio })
-    save(items.map((x) => (x.id === i.id ? { ...x, taskId: t.id, text: '' } : x)))
+    await store.updateMatrixItem(i.id, { taskId: t.id, text: '' })
   }
 
   // Drag & drop tra quadranti.

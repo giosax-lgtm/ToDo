@@ -164,6 +164,10 @@ Se la vista ha un ordinamento attivo, il riordino manuale è disabilitato (`sort
 
 Esporta `store.syncEntities()` cifrato con una passphrase scelta al momento (PBKDF2 + AES-GCM). L'import decifra, **cancella tutto** (`wipeAll`) e applica i dati (`applySync`). È indipendente dalla sync su Drive.
 
+### 3.8a Matrice di Eisenhower (`Eisenhower.svelte`)
+
+Le voci sono record della tabella `matrix` (schema v5), una per voce, con `projectId`, quadrante `q` ed eventuale `taskId`. Sono sincronizzate (`syncEntities`/`applySync`/`wipeAll`/`deleteProject`) e nei backup. Un record per voce permette di unire modifiche a voci diverse fatte su dispositivi diversi. Cancellando un task spariscono le sue voci. La migrazione v5 sposta le vecchie voci dalle preferenze `p:eisenhower:<listId>` nella tabella. Il Pomodoro e MIT · 1-3-5 restano preferenze locali, non sincronizzate.
+
 ### 3.8b Quaderno note (`Notes.svelte`, `notehtml.ts`, `noteexport.ts`)
 
 Ogni lista ha un quaderno stile OneNote: **sezioni** (`noteSections`) che contengono **pagine** (`notes`, con `html`). Sono tabelle IndexedDB (schema v3) e record sincronizzati/inclusi nei backup come gli altri (`syncEntities`/`applySync`/`wipeAll`/`deleteProject` nello store).

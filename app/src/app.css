@@ -174,6 +174,10 @@ textarea { resize: vertical; max-height: 70vh; }
 .col-grip { cursor: grab; color: var(--muted); padding: 0 0.2857rem; user-select: none; }
 .card-desc { margin: 0; font-size: calc(0.8571rem * var(--ts, 1)); color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card-desc img, .desc-links img { display: block; max-width: 100%; height: auto; margin: 0.5rem 0; border-radius: 0.5rem; }
+.card-desc :is(p, div, ul, ol, blockquote, pre) { margin: 0; padding-left: 0; display: inline; }
+.card-desc :is(p, div, li, blockquote, pre)::after { content: " "; }
+.card-desc a { color: inherit; text-decoration: underline; }
+.card-desc code { font-family: ui-monospace, Consolas, monospace; }
 .label-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .column header { gap: 0.2857rem; justify-content: flex-start; }
 .column header h3 { flex: 1; }

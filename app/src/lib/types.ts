@@ -168,6 +168,15 @@ export interface Group {
 }
 
 // Una SEZIONE del quaderno note di una lista (come le schede di OneNote). Contiene piu' pagine (NotePage.sectionId). Gestita da store.svelte.ts, mostrata da Notes.svelte.
+// Una voce della MATRICE DI EISENHOWER: idea libera (text) oppure collegata a un task (taskId). q = quadrante 1..4. Sincronizzata come gli altri record.
+export interface MatrixItem {
+  id: string
+  projectId: string
+  text: string
+  q: 1 | 2 | 3 | 4
+  taskId?: string
+}
+
 export interface NoteSection {
   id: string
   projectId: string
