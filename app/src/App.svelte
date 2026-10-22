@@ -15,6 +15,8 @@
   import Sidebar from './lib/Sidebar.svelte'
   import Board from './lib/Board.svelte'
   import TableView from './lib/TableView.svelte'
+  import GanttView from './lib/GanttView.svelte'
+  import Dashboard from './lib/Dashboard.svelte'
   import CardDetail from './lib/CardDetail.svelte'
   import Toolbar from './lib/Toolbar.svelte'
   import Alerts from './lib/Alerts.svelte'
@@ -147,7 +149,7 @@
         <button class="chip notes-open" title="Open the notes of this list" onclick={() => store.setNotesWin({ open: true, min: false })}>📝 Notes</button>
       </header>
       <Toolbar />
-      {#if store.draft.layout === 'table'}<TableView />{:else}<Board />{/if}
+      {#if store.draft.layout === 'table'}<TableView />{:else if store.draft.layout === 'gantt'}<GanttView />{:else if store.draft.layout === 'dashboard'}<Dashboard />{:else}<Board />{/if}
     </main>
     <Alerts />
     <Notes />

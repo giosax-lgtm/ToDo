@@ -24,6 +24,10 @@ const isoDay = (d: Date) => {
 }
 // Oggi come 'yyyy-mm-dd'. Usata da dueBucket e dal gruppo 'Today' del raggruppamento per scadenza.
 export const today = () => isoDay(new Date())
+// Somma n giorni a una data 'yyyy-mm-dd' (calcolo in UTC, senza salti per l'ora legale).
+export const addDays = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10)
+// Giorni tra due date 'yyyy-mm-dd' (b - a).
+export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000)
 // Tra n giorni come 'yyyy-mm-dd' (usata da dueBucket per la soglia 'prossimi 7 giorni').
 const plusDays = (n: number) => isoDay(new Date(Date.now() + n * 86400000))
 
@@ -187,6 +191,7 @@ class AppStore {
     await this.loadTables()
     if (!this.projects.length) await this.seed()
     await this.migrateFieldsPerProject()
+    await this.ensurePeople()
     for (const p of this.projects) if (!this.views.some((v) => v.projectId === p.id)) await this.seedViews(p.id)
     const lastId = this.settings.get('currentProjectId') as string | undefined
     this.currentProjectId = this.projects.some((p) => p.id === lastId) ? lastId! : this.projects[0].id
@@ -483,10 +488,11 @@ class AppStore {
   }
 
   // True se un task e' visibile con la bozza corrente: completati nascosti se non richiesti, ricerca nel titolo/descrizione e tutti i filtri. Usata da groupTasks e moveTask.
-  matches(t: Task) {
+  // Con 'withDone' i completati restano inclusi anche se la vista li nasconde (servono alla dashboard per le percentuali).
+  matches(t: Task, withDone = false) {
     const v = this.draft
     if (t.projectId !== this.currentProjectId) return false
-    if (!v.showCompleted && t.done) return false
+    if (!withDone && !v.showCompleted && t.done) return false
     const s = v.search.trim().toLowerCase()
     if (s && !(t.title + ' ' + t.description).toLowerCase().includes(s)) return false
     for (const f of v.filters) {
@@ -545,7 +551,7 @@ class AppStore {
   }
 
   // In quali gruppi compare un task (un task con piu' tag puo' stare in piu' gruppi).
-  private groupKeys(t: Task): string[] {
+  groupKeys(t: Task): string[] {
     const key = this.draft.groupBy
     return key === 'none' ? ['all'] : this.valuesOf(t, key)
   }
@@ -678,6 +684,7 @@ class AppStore {
     ]
     for (const [n, c] of defaults) await this.addColumn(p.id, n, c)
     await this.seedViews(p.id)
+    await this.ensurePeople()
     return p
   }
 
@@ -1027,9 +1034,71 @@ class AppStore {
     const t = this.tasks.find((x) => x.id === id)
     if (!t) return
     const before = { columnId: t.columnId, done: t.done, due: t.due }
+    if (patch.done !== undefined && patch.done !== t.done) patch = { ...patch, doneAt: patch.done ? today() : null }
+    if (patch.milestone && !('start' in patch)) patch = { ...patch, start: patch.due ?? t.due ?? t.start ?? null }
     Object.assign(t, patch, { updatedAt: Date.now() })
     await db.tasks.put(plain(t))
     await this.logTaskChange(t, before)
+    if ('start' in patch || 'due' in patch || 'deps' in patch) await this.cascade(id)
+  }
+
+  // Giorno di inizio effettivo di un task: Start date, altrimenti il giorno di creazione. Usata da Gantt, dipendenze e dashboard.
+  startOf(t: Task) {
+    if (t.milestone && t.due) return t.due
+    if (t.start) return t.start
+    return isoDay(new Date(t.createdAt))
+  }
+
+  // Dipendenze (fine -> inizio): dopo una modifica di date, i task che dipendono da 'id' non possono iniziare prima del giorno dopo la scadenza dei loro predecessori.
+  // Se lo farebbero, slittano in avanti mantenendo la durata, a catena. Non anticipa mai nulla. 'seen' protegge dai cicli.
+  private async cascade(id: string, seen = new Set<string>()) {
+    if (seen.has(id)) return
+    seen.add(id)
+    for (const s of this.tasks.filter((x) => x.deps?.includes(id))) {
+      const ends = (s.deps ?? []).map((d) => this.tasks.find((x) => x.id === d)?.due).filter((d): d is string => !!d)
+      if (!ends.length || s.done) continue
+      const need = addDays(ends.sort().at(-1)!, 1)
+      const st = this.startOf(s)
+      if (st >= need) continue
+      const shift = daysBetween(st, need)
+      const patch: Partial<Task> = { start: need, updatedAt: Date.now() }
+      if (s.due) patch.due = addDays(s.due, shift)
+      Object.assign(s, patch)
+      await db.tasks.put(plain(s))
+      await this.cascade(s.id, seen)
+    }
+  }
+
+  // Task che dipendono (anche indirettamente) da 'id': servono a non proporre cicli nella scelta dei predecessori.
+  descendantsOf(id: string, acc = new Set<string>()) {
+    for (const s of this.tasks) if (s.deps?.includes(id) && !acc.has(s.id)) { acc.add(s.id); this.descendantsOf(s.id, acc) }
+    return acc
+  }
+
+  // Baseline: "congela" le date pianificate (inizio e scadenza) di tutti i task con scadenza della lista corrente, oppure le cancella.
+  async setBaseline(clear = false) {
+    const list = this.tasks.filter((t) => t.projectId === this.currentProjectId && (clear ? t.baseline : t.due))
+    for (const t of list) t.baseline = clear ? null : { start: this.startOf(t) <= t.due! ? this.startOf(t) : t.due!, due: t.due! }
+    await db.tasks.bulkPut(plain(list))
+  }
+
+  // Campo "Assignee" (persone) di una lista; undefined se non esiste ancora.
+  peopleField(projectId = this.currentProjectId) {
+    return this.fields.find((f) => f.projectId === projectId && f.kind === 'people')
+  }
+
+  // Crea il campo "Assignee" in ogni lista che non l'ha (id deterministico: dispositivi diversi non creano doppioni). Se esiste gia' un campo con quel nome lo adotta.
+  private async ensurePeople() {
+    const changed: Field[] = []
+    for (const p of this.projects) {
+      if (this.peopleField(p.id)) continue
+      const named = this.fields.find((f) => f.projectId === p.id && /^(assignee|assigned to|responsabile|assegnatario)$/i.test(f.name.trim()))
+      if (named) { named.kind = 'people'; changed.push(named); continue }
+      const f: Field = { id: 'people~' + p.id, projectId: p.id, name: 'Assignee', kind: 'people', order: 0 }
+      this.fields.push(f)
+      changed.push(f)
+    }
+    if (changed.length) await db.fields.bulkPut(plain(changed))
   }
 
   // Elimina un task (CardDetail.svelte, pulsante 'Delete item') insieme ai suoi passi e al suo diario.

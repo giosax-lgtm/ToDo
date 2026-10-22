@@ -112,6 +112,13 @@
     patch({ subtasks: list })
   }
 
+  // Predecessori scelti e candidati (task della lista, esclusi se stesso, quelli gia' scelti e quelli che dipendono da questo: eviterebbero un ciclo).
+  const deps = $derived((task.deps ?? []).map((id) => store.tasks.find((t) => t.id === id)).filter((t): t is Task => !!t))
+  const depChoices = $derived.by(() => {
+    const bad = store.descendantsOf(task.id)
+    return store.tasks.filter((t) => t.projectId === task.projectId && t.id !== task.id && !bad.has(t.id) && !(task.deps ?? []).includes(t.id))
+  })
+
   const subDone = $derived(task.subtasks.filter((s) => s.done).length)
   const subProgress = $derived(task.subtasks.length ? Math.round((subDone / task.subtasks.length) * 100) : 0)
 
@@ -129,7 +136,7 @@
     {#if !maxed}<div class="resizer" role="separator" aria-orientation="vertical" use:resizer={{ key: 'detail', dir: -1, min: 340, max: 1100, fallback: 480 }}></div>{/if}
     <div class="detail-head">
       <button class="check big" class:on={task.done} aria-label="Complete" onclick={() => patch({ done: !task.done })}>{task.done ? '✓' : ''}</button>
-      <input class="title-input" value={task.title} onchange={(e) => patch({ title: e.currentTarget.value.trim() || task.title })} />
+      <textarea class="title-input" rows="1" use:autogrow={task.title} value={task.title} onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }} onchange={(e) => patch({ title: e.currentTarget.value.replace(/\s+/g, ' ').trim() || task.title })}></textarea>
       <button class="icon max-btn" aria-label={maxed ? 'Restore size' : 'Full screen'} title={maxed ? 'Restore size' : 'Full screen'} onclick={() => store.setPref('detailMax', !maxed)}>{maxed ? '❐' : '⤢'}</button>
       <button class="icon" aria-label="Close" onclick={close}>✕</button>
     </div>
@@ -148,9 +155,37 @@
           {/each}
         </span>
       </div>
+      <label>Start date
+        <input type="date" value={task.start ?? ''} onchange={(e) => patch({ start: e.currentTarget.value || null })} />
+      </label>
       <label>Due date
         <input type="date" value={task.due ?? ''} onchange={(e) => patch({ due: e.currentTarget.value || null })} />
       </label>
+    </div>
+
+    {#if store.peopleField()}
+      <div class="block"><TagPicker {task} field={store.peopleField()!} /></div>
+    {/if}
+
+    <div class="grid">
+      <label>Estimate (days)
+        <input type="number" min="0" step="0.5" value={task.est ?? ''} disabled={task.milestone}
+          onchange={(e) => patch({ est: e.currentTarget.value === '' ? null : Math.max(0, Number(e.currentTarget.value)) })} />
+      </label>
+      <label class="check-row"><input type="checkbox" checked={!!task.milestone} onchange={(e) => patch({ milestone: e.currentTarget.checked })} /> Milestone (◆ on due date)</label>
+    </div>
+
+    <div class="block">
+      <span class="lbl">Depends on <small class="muted">(this starts after they finish)</small></span>
+      <div class="pills">
+        {#each deps as d (d.id)}
+          <span class="pill dep-pill">{d.title} <button class="icon" aria-label="Remove dependency" onclick={() => patch({ deps: (task.deps ?? []).filter((x) => x !== d.id) })}>✕</button></span>
+        {/each}
+      </div>
+      <select value="" onchange={(e) => { const v = e.currentTarget.value; e.currentTarget.value = ''; if (v) patch({ deps: [...(task.deps ?? []), v] }) }}>
+        <option value="">+ Add predecessor…</option>
+        {#each depChoices as c (c.id)}<option value={c.id}>{c.title}</option>{/each}
+      </select>
     </div>
 
     <Reminders {task} />
@@ -208,7 +243,7 @@
     </div>
     {/if}
 
-    {#each store.fieldsOf() as f (f.id)}
+    {#each store.fieldsOf().filter((x) => x.kind !== 'people') as f (f.id)}
       <div class="block"><TagPicker {task} field={f} /></div>
     {/each}
 

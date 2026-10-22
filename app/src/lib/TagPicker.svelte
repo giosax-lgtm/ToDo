@@ -49,7 +49,7 @@
     <div class="tp-head">
       {#if editing}
         <input class="mini" value={field.name} onchange={(e) => store.renameField(field.id, e.currentTarget.value)} />
-        <button class="icon" title="Delete field" onclick={() => { if (confirm(`Delete field "${field.name}" from all items?`)) store.deleteField(field.id) }}>🗑</button>
+        {#if field.kind !== 'people'}<button class="icon" title="Delete field" onclick={() => { if (confirm(`Delete field "${field.name}" from all items?`)) store.deleteField(field.id) }}>🗑</button>{/if}
       {:else}
         <span class="lbl">{field.name}</span>
       {/if}

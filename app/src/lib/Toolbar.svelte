@@ -9,6 +9,8 @@
   import Pill from './Pill.svelte'
   import type { ViewFilter } from './types'
 
+  const LAYOUT_ICON: Record<string, string> = { table: '▦', board: '▥', gantt: '▬', dashboard: '◔' }
+
   // Stato locale: quale menu a comparsa e' aperto, quale sottosezione di 'Edit view' e quale menu opzioni di una vista.
   type Menu = 'views' | 'edit' | 'group' | `filter:${string}` | 'addfilter' | null
   let menu = $state<Menu>(null)
@@ -95,7 +97,7 @@
         {#each store.projectViews as v (v.id)}
           <div class="menu-row" class:sel={v.id === store.currentViewId}>
             <button class="grow" onclick={() => { store.selectView(v.id); menu = null }}>
-              {v.layout === 'table' ? '▦' : '▥'} {v.name}
+              {LAYOUT_ICON[v.layout] ?? '▥'} {v.name}
               {#if v.id === store.defaultViewId}<small class="badge">Default</small>{/if}
               {#if v.id === store.currentViewId}✓{/if}
             </button>
@@ -180,6 +182,8 @@
         <div class="layouts">
           <button class:sel={d.layout === 'table'} onclick={() => store.updateDraft({ layout: 'table' })}>▦<br />Table</button>
           <button class:sel={d.layout === 'board'} onclick={() => store.updateDraft({ layout: 'board' })}>▥<br />Board</button>
+          <button class:sel={d.layout === 'gantt'} onclick={() => store.updateDraft({ layout: 'gantt' })}>▬<br />Gantt</button>
+          <button class:sel={d.layout === 'dashboard'} onclick={() => store.updateDraft({ layout: 'dashboard' })}>◔<br />Dashboard</button>
         </div>
         <label class="toggle row">Show completed items
           <input type="checkbox" checked={d.showCompleted} onchange={(e) => store.updateDraft({ showCompleted: e.currentTarget.checked })} />

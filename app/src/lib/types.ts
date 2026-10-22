@@ -25,6 +25,7 @@ export interface Column {
 export interface Field {
   id: string
   projectId?: string
+  kind?: 'people' // campo "Assignee": le scelte sono le persone della lista (creato in automatico, non eliminabile)
   name: string
   order: number
 }
@@ -104,6 +105,12 @@ export interface Task {
   title: string
   description: string
   priority: 0 | 1 | 2 | 3 | 4 | 5
+  start?: string | null // yyyy-mm-dd, facoltativa: inizio per la vista Gantt (se manca vale la data di creazione)
+  milestone?: boolean // traguardo: durata zero, nel Gantt e' un rombo sulla scadenza
+  deps?: string[] // id dei task che devono finire prima (fine -> inizio); spostando un predecessore, questo task slitta di conseguenza
+  est?: number | null // durata stimata in giorni, confrontata con la durata pianificata (inizio -> scadenza) e con quella reale
+  doneAt?: string | null // yyyy-mm-dd in cui il task e' stato completato (serve alla durata reale)
+  baseline?: { start: string; due: string } | null // date pianificate "congelate" con Set baseline, per vedere gli slittamenti
   due: string | null // yyyy-mm-dd
   done: boolean
   tags: Record<string, string[]> // fieldId -> optionIds
@@ -115,8 +122,8 @@ export interface Task {
   updatedAt: number
 }
 
-// Modo di visualizzazione di una vista: 'board' (colonne kanban, Board.svelte) o 'table' (TableView.svelte).
-export type Layout = 'board' | 'table'
+// Modo di visualizzazione di una vista: 'board' (colonne kanban, Board.svelte), 'table' (TableView.svelte), 'gantt' (GanttView.svelte) o 'dashboard' (Dashboard.svelte).
+export type Layout = 'board' | 'table' | 'gantt' | 'dashboard'
 
 // Una VISTA salvata di una lista: layout, raggruppamento, filtri, ordinamento, campi nascosti. 'store.draft' e' la copia di lavoro modificabile;
 // 'search' e' transitorio e non viene mai salvato nella vista.
