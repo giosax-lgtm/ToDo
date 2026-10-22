@@ -14,6 +14,9 @@ To-do list personale in stile kanban, privata e senza server. È una PWA: si ins
 ## Privacy
 Il repository contiene solo il codice. Nessun dato, chiave o credenziale è incluso: il Google Client ID e la passphrase li inserisce l'utente nell'app e restano sul suo dispositivo.
 
+## Licenza
+Codice sotto [PolyForm Noncommercial 1.0.0](LICENSE): puoi leggerlo, usarlo e modificarlo per uso personale e non commerciale; l'uso commerciale richiede il permesso dell'autore.
+
 ## Stack
 Svelte 5, TypeScript, Vite, Dexie, vite-plugin-pwa.
 
