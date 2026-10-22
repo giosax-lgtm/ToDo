@@ -38,7 +38,11 @@ Clicca una card (o il nome in tabella) per aprirlo. Chiudi con **✕**, con **Es
 - **Titolo** e **completamento** (cerchio con spunta a sinistra del titolo).
 - **Status**: la colonna di stato.
 - **Priority**: da 1 a 5 stelle (clicca la stessa stella per azzerare).
-- **Due date**: data di scadenza.
+- **Assignee**: il responsabile. Ogni lista ha il suo elenco di persone: scrivi un nome e premi Invio per aggiungerlo, poi in tutti gli altri elementi della lista lo trovi già nell'elenco da cliccare.
+- **Start date** e **Due date**: inizio (facoltativo; se manca vale il giorno di creazione) e scadenza. Servono anche alla vista Gantt, dove si possono cambiare trascinando le barre.
+- **Estimate (days)**: durata stimata, confrontata con quella pianificata e con quella reale.
+- **Milestone**: trasforma l'elemento in un traguardo (rombo sulla scadenza, durata zero).
+- **Depends on**: i task che devono finire prima. Se sposti un predecessore, questo elemento slitta in avanti di conseguenza (mai all'indietro).
 - **Reminders**: promemoria con data/ora (sezione 6).
 - **Description**: testo libero. Gli indirizzi web diventano **link cliccabili**.
 - **Subtasks**: sotto-attività con spunta. Scrivi il testo e premi Invio per aggiungerne una; **✕** per toglierla.
@@ -78,7 +82,7 @@ Clicca il nome della vista (▤) nella barra degli strumenti. Dal menu ⋮ di og
 - **Sort**: ordina per nome, stato, priorità, scadenza, data di creazione o un campo. Cliccando di nuovo si inverte; **Remove sort** torna all'ordine manuale. Nella tabella si ordina anche cliccando le intestazioni.
 - **Hide fields**: nasconde campi (priorità, scadenza, sottotask, reminder, descrizione, tag…) da card e tabella.
 - **Group by**: raggruppa per stato, priorità, scadenza, completato o per un tuo campo; **Remove group by** mostra un unico gruppo. Si può cambiare anche dal pulsante **Group by** della barra.
-- **Layout**: **Board** (colonne) o **Table** (tabella).
+- **Layout**: **Board** (colonne), **Table** (tabella), **Gantt** (linea del tempo) o **Dashboard** (statistiche). Vedi 5b.
 - **Show completed items**: mostra anche gli elementi completati.
 
 ### Salvare o scartare le modifiche
@@ -97,6 +101,23 @@ Quando raggruppi per stato o per un tuo campo, i gruppi sono **modificabili**:
 - trascina la maniglia **⠿** per **riordinare** le colonne.
 
 I gruppi di priorità, scadenza e completato sono fissi.
+
+## 5b. Gantt e Dashboard
+
+Scegli il layout da **⚙ Edit view → Layout** e salva la vista con **Save as new** per ritrovarla nel menu delle viste. Entrambe rispettano filtri, ricerca e raggruppamento della vista.
+
+### Gantt
+- Ogni elemento è una **barra** dall'inizio alla scadenza, con titolo e responsabile scritti sopra (se la barra è abbastanza larga). Verde = completato, rosso = in ritardo; la parte più scura è l'avanzamento (passi o sotto-task). La linea rossa verticale è **oggi**. Senza scadenza compare solo "◆ no due date".
+- **Trascina la barra** per spostarla nel tempo, il **bordo sinistro** per cambiare l'inizio, il **bordo destro** per cambiare la scadenza. Le date vengono salvate nell'elemento. Avvicinandoti al bordo della schermata la linea del tempo scorre da sola. Un clic apre il dettaglio.
+- **Frecce** = dipendenze (rosse se il successore inizia troppo presto). Spostando un predecessore, i successori slittano in avanti.
+- **◆ Rombo** = milestone. Si trascina come le barre.
+- **Linea sotto la barra** = durata stimata (arancione se la durata pianificata la supera).
+- **⚑ Set baseline** congela le date attuali come "piano": sotto ogni barra compare una barra grigia sottile (rossa se la scadenza è slittata). **Reset baseline** la ricalcola, **Baseline** la mostra/nasconde, **✕** la cancella. Vale per tutti i task con scadenza della lista.
+- **Days / Weeks / Months** cambia lo zoom, **Today** riporta alla data odierna.
+- **⤓ PNG** scarica il diagramma come immagine; **⤓ PDF** apre la stampa (A4 orizzontale): scegli "Salva come PDF".
+
+### Dashboard
+Avanzamento complessivo in percentuale, indicatori (totale, completati, da fare, in ritardo, in scadenza entro 7 giorni, senza scadenza), ripartizione per stato, scadenze e priorità, dettaglio per gruppo, carico per responsabile, stime contro durata reale, scostamento dalla baseline, passi dei task con tracciamento, ed elenchi cliccabili dei task in ritardo e in arrivo. Include sempre i completati, altrimenti le percentuali non avrebbero senso.
 
 ## 6. Reminder (promemoria)
 

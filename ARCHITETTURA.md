@@ -67,7 +67,7 @@ Comandi (da `app/`):
 | | `noteexport.ts`, `zip.ts` | esportazione docx/pdf/html/md/txt; mini writer zip |
 | **Interazione** | `sortable.ts` | azione drag & drop |
 | | `resizer.ts` | azione ridimensionamento pannelli |
-| **UI** | `Sidebar`, `Toolbar`, `Board`, `Column`, `Card`, `TableView`, `CardDetail`, `TagPicker`, `Reminders`, `Tracker`, `Comments`, `Alerts`, `Settings`, `Pill`, `Linkify` (`.svelte`) | componenti |
+| **UI** | `Sidebar`, `Toolbar`, `Board`, `Column`, `Card`, `TableView`, `GanttView`, `Dashboard`, `CardDetail`, `TagPicker`, `Reminders`, `Tracker`, `Comments`, `Alerts`, `Settings`, `Pill`, `Linkify` (`.svelte`) | componenti |
 
 ## 3. Architettura
 
@@ -79,6 +79,8 @@ index.html → main.ts → App.svelte
                          ├─ Toolbar ──────── viste, filtri, ricerca
                          ├─ Board → Column → Card     (layout "board")
                          ├─ TableView                 (layout "table")
+                         ├─ GanttView                 (layout "gantt")
+                         ├─ Dashboard                 (layout "dashboard")
                          ├─ CardDetail → Reminders, TagPicker
                          ├─ Settings ─────── aspetto, Calendar, backup, sync
                          └─ Alerts ───────── banner reminder scaduti
@@ -114,6 +116,16 @@ Convenzione per ogni modifica: (1) cambia l'oggetto in memoria, (2) scrive su In
 - La **ricerca** è nella bozza ma non viene mai salvata.
 - I **gruppi** (`Group`, calcolati da `computeGroups`) sono le colonne del board / blocchi della tabella. Ogni gruppo ha `apply`, la funzione che descrive cosa cambia in un task trascinato lì (es. nuova colonna di stato, nuova priorità, nuovo tag). `apply = null` significa "non si può rilasciare qui" (es. gruppi di scadenza "Overdue", "Next 7 days", "Later").
 - Il raggruppamento può essere per: stato (colonne), priorità, completato, scadenza, o qualsiasi campo tag.
+
+### 3.3b Gantt, Dashboard, dipendenze, baseline, responsabili
+
+- `Layout` = `'board' | 'table' | 'gantt' | 'dashboard'`. `GanttView.svelte` e `Dashboard.svelte` usano `store.groups` / `groupTasks` (Gantt) e `store.matches(t, true)` (Dashboard: include i completati).
+- Campi di `Task` aggiunti: `start`, `milestone`, `deps`, `est`, `doneAt`, `baseline`. `doneAt` è impostato da `updateTask` quando `done` cambia.
+- **Gantt**: le date sono giorni interi (numero di giorni UTC, nessun salto per l'ora legale); le righe hanno altezze fisse in px (`ROW`, `GROUP`, `HEAD`) perché le frecce delle dipendenze sono un `<svg>` sovrapposto. Il trascinamento usa i pointer events e `dayAt()` (giorno sotto il puntatore, indipendente da scroll e allargamento dell'intervallo); durante il drag l'intervallo si allarga e un `$effect` compensa `scrollLeft`; un ciclo `requestAnimationFrame` scorre ai bordi. Al rilascio: `store.updateTask(id, {start, due})`.
+- **Dipendenze**: `updateTask` chiama `cascade()` quando cambiano `start`/`due`/`deps`: i successori non completati slittano in avanti (durata invariata) a catena, con protezione dai cicli. `descendantsOf()` evita cicli nella scelta dei predecessori in `CardDetail`.
+- **Baseline**: `store.setBaseline(clear?)` copia inizio/scadenza in `Task.baseline` per i task della lista corrente.
+- **Responsabili**: `Field.kind = 'people'`, un campo per lista con id deterministico `people~<projectId>` creato da `ensurePeople()` (all'avvio e in `addProject`); `peopleField()` lo restituisce. Sono quindi normali tag: filtro, raggruppamento e sync funzionano da soli. `TagPicker` non permette di eliminarlo.
+- **Export**: `buildSvg()` genera un SVG autonomo (colori fissi); PNG via canvas, PDF via `print()` in un iframe nascosto.
 
 ### 3.4 Drag & drop
 
