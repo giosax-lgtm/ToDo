@@ -107,6 +107,7 @@ class AppStore {
   openTaskId = $state<string | null>(null)
   alerts = $state<ReminderAlert[]>([])
   settingsOpen = $state(false)
+  toolsOpen = $state(false) // sezione Tools (Eisenhower, Pomodoro, MIT, guide) al posto della vista della lista
   private settings = new SvelteMap<string, unknown>()
 
   // VALORI DERIVATI (si ricalcolano da soli): lista corrente, sue colonne e viste ordinate, vista corrente, 'dirty' (bozza diversa dalla vista salvata),
@@ -722,6 +723,7 @@ class AppStore {
 
   // Passa a un'altra lista e carica la sua vista (click sulla Sidebar).
   selectProject(id: string) {
+    this.toolsOpen = false
     this.currentProjectId = id
     this.setSetting('currentProjectId', id)
     this.loadView()

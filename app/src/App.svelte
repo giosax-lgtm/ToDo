@@ -22,6 +22,8 @@
   import Alerts from './lib/Alerts.svelte'
   import Settings from './lib/Settings.svelte'
   import Notes from './lib/Notes.svelte'
+  import Tools from './lib/Tools.svelte'
+  import { pomodoro, PHASE_LABEL } from './lib/focustimer.svelte'
   import { gcal } from './lib/gcal.svelte'
   import { cloud } from './lib/cloud.svelte'
   import { hasSession, setAuthEndpoint } from './lib/google'
@@ -143,13 +145,25 @@
       <header class="topbar">
         <button class="icon menu-btn" aria-label="Menu" onclick={() => (sidebarOpen = !sidebarOpen)}>☰</button>
         <div>
-          <h1>{store.currentProject?.name}</h1>
-          <p>Manage and monitor tasks</p>
+          <h1>{store.toolsOpen ? 'Tools' : store.currentProject?.name}</h1>
+          <p>{store.toolsOpen ? 'Decide what to do and manage your time' : 'Manage and monitor tasks'}</p>
         </div>
+        {#if pomodoro.running || pomodoro.progress > 0}
+          <span class="pomo-mini" class:brk={pomodoro.phase !== 'work'} title="{PHASE_LABEL[pomodoro.phase]} — open the Pomodoro timer">
+            <button class="pm-time" onclick={() => { store.setPref('tool', 'pomodoro'); store.toolsOpen = true }}>{pomodoro.phase === 'work' ? '🍅' : '☕'} {pomodoro.text}</button>
+            <button class="pm-btn" aria-label={pomodoro.running ? 'Pause' : 'Resume'} onclick={() => (pomodoro.running ? pomodoro.pause() : pomodoro.start())}>{pomodoro.running ? '⏸' : '▶'}</button>
+            <i style:width="{pomodoro.progress * 100}%"></i>
+          </span>
+        {/if}
         <button class="chip notes-open" title="Open the notes of this list" onclick={() => store.setNotesWin({ open: true, min: false })}>📝 Notes</button>
       </header>
-      <Toolbar />
-      {#if store.draft.layout === 'table'}<TableView />{:else if store.draft.layout === 'gantt'}<GanttView />{:else if store.draft.layout === 'dashboard'}<Dashboard />{:else}<Board />{/if}
+      {#if store.toolsOpen}
+        <button class="chip tools-back" onclick={() => (store.toolsOpen = false)}>← Back to {store.currentProject?.name}</button>
+        <Tools />
+      {:else}
+        <Toolbar />
+        {#if store.draft.layout === 'table'}<TableView />{:else if store.draft.layout === 'gantt'}<GanttView />{:else if store.draft.layout === 'dashboard'}<Dashboard />{:else}<Board />{/if}
+      {/if}
     </main>
     <Alerts />
     <Notes />

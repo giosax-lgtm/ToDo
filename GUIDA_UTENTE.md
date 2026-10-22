@@ -144,6 +144,17 @@ Ogni lista ha il suo **quaderno di note**, stile OneNote. Si apre con **📝 Not
 - **Esporta**: menu Export, per la pagina, la sezione o tutta la lista, in Word (.docx), PDF (si apre la stampa: scegli "Salva come PDF"), HTML, Markdown o testo.
 - Le note si sincronizzano e finiscono nei backup come il resto dei dati.
 
+## 6c. Tools (🧰 Tools)
+
+Dalla barra laterale, **🧰 Tools** apre una sezione a schede con strumenti per decidere cosa fare e gestire il tempo (testi in inglese, brevi). Per tornare alla lista: **← Back** o clic su una lista.
+
+- **Eisenhower**: matrice 2×2 urgente/importante. Aggiungi idee libere o scegli task della lista; trascina le voci tra i quadranti (o usa il numerino per spostarle). Le idee **non** entrano nella to-do list da sole: **→ To-do** le crea come task (priorità suggerita dal quadrante) e restano collegate. Le voci sono per lista.
+- **MIT · 1-3-5**: scegli le priorità del giorno, da 1 a 3 (MIT) oppure 1 grande + 3 medie + 5 piccole. Ogni voce è testo libero o un task (spuntarla lo completa anche nella lista). Il giorno dopo si riparte da zero.
+- **Pomodoro**: timer focus / pausa breve / pausa lunga con durate modificabili, suono e notifica a fine fase. Continua anche se cambi scheda; il tempo residuo appare nel titolo della pagina.
+- **Guide for productivity**: guide brevi a sezioni (sistema in 4 passaggi, Pareto 80/20). Per aggiungerne basta un elemento in `GUIDES` di `Guides.svelte`.
+- Per aggiungere un nuovo tool: componente `.svelte` + una riga in `TOOLS` di `Tools.svelte`.
+- Le voci dei tools sono salvate sul dispositivo (preferenze), non sincronizzate su Drive.
+
 ## 7. Impostazioni e aspetto (**⚙ Settings**)
 
 - **Theme**: *Match system*, *Light*, *Dark*, *Claude theme*.
