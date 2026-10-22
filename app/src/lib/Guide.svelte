@@ -188,7 +188,7 @@
       id: 'tools',
       icon: '🧰',
       title: 'Tools',
-      intro: 'Decide what to do and manage your time. Open Tools from the sidebar; ← Back returns to your list. A fourth tab, “Guide for productivity”, holds short guides on planning and the 80/20 rule.',
+      intro: 'Decide what to do and manage your time. Open Tools from the sidebar; ← Back returns to your list. “Root cause” helps you find why something went wrong, and the last tab, “Guide for productivity”, holds short guides on planning and the 80/20 rule.',
       points: [],
       tabs: [
         {
@@ -222,6 +222,23 @@
             'It keeps running while you browse the app; the remaining time shows in the page title and in a small timer at the top.',
           ],
           shots: [{ file: 'pomodoro.webp', caption: 'The Pomodoro timer.' }],
+        },
+        {
+          id: 'rca',
+          label: 'Root cause',
+          intro: 'Find the real cause of a problem instead of fixing symptoms. Press + New analysis and pick a type: 5 Whys (a chain of “why?”), Fishbone (causes by category), Fault tree (causes joined by AND / OR gates), Is / Is-Not (narrow the problem down) or Pareto (which few causes matter most).',
+          points: [
+            'Link an analysis to the task you are investigating (or start one from the “Root cause analysis” block in the task panel).',
+            'Click a box to select it; double-click or Enter to write; Tab adds a cause below; the ＋ Sibling button adds one beside it; Delete removes it. Drag a box onto another to move it with its branch. The diagram arranges itself.',
+            '✕ Ruled out marks a hypothesis that led nowhere: the branch turns grey and dashed and the path is shown cut. ★ marks a root cause and the path leading to it turns green.',
+            '→ To-do turns a root cause into a corrective-action task; the Action plan list under the diagram tracks them.',
+            'Fault tree: click a gate to switch between OR (any one is enough) and AND (all together).',
+            'Export as PNG, PDF or an editable PowerPoint slide (diagrams) with the buttons above the drawing.',
+          ],
+          shots: [
+            { file: 'rca-whys.webp', caption: '5 Whys: a dead-end branch (ruled out) and the green path to the root cause.' },
+            { file: 'rca-fishbone.webp', caption: 'Fishbone with a ruled-out cause and a root cause.' },
+          ],
         },
       ],
     },
