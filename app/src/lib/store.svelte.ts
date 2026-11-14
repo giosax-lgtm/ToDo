@@ -9,7 +9,8 @@ import { SvelteMap } from 'svelte/reactivity'
 import { db } from './db'
 import { COLOR_KEYS } from './colors'
 import { descPlain } from './desc'
-import type { Column, Field, FieldOption, Group, LogEntry, MatrixItem, NoteBox, NotePage, NoteSection, NotesWin, Project, Rca, RcaItem, RcaNode, Repeat, Step, StepStatus, Task, View, ViewFilter, ViewSort } from './types'
+import { defaultCriteria } from './ideasmath'
+import type { Column, Field, FieldOption, Group, IdeaBoard, IdeaCriterion, IdeaItem, LogEntry, MatrixItem, NoteBox, NotePage, NoteSection, NotesWin, Project, Rca, RcaItem, RcaNode, Repeat, Step, StepStatus, Task, View, ViewFilter, ViewSort } from './types'
 
 // Genera un id univoco (UUID) per nuove entita'.
 const uid = () => crypto.randomUUID()
@@ -104,6 +105,7 @@ class AppStore {
   logs = $state<LogEntry[]>([])
   matrix = $state<MatrixItem[]>([])
   rcas = $state<Rca[]>([])
+  ideaBoards = $state<IdeaBoard[]>([])
   currentProjectId = $state('')
   currentViewId = $state('')
   draft = $state<View>(newView('', 'Default')) // working copy of the current view
@@ -165,7 +167,7 @@ class AppStore {
   // Rilegge tutte le tabelle da IndexedDB nello stato in memoria, riparando dati vecchi (order mancante, reminders assenti). Chiamata da init, applySync e wipeAll.
   /** (Re)read all data tables from IndexedDB into memory. */
   private async loadTables() {
-    const [projects, columns, tasks, fields, options, views, notes, noteSections, steps, logs, matrix, rcas] = await Promise.all([
+    const [projects, columns, tasks, fields, options, views, notes, noteSections, steps, logs, matrix, rcas, ideaBoards] = await Promise.all([
       db.projects.toArray(),
       db.columns.toArray(),
       db.tasks.toArray(),
@@ -178,6 +180,7 @@ class AppStore {
       db.logs.toArray(),
       db.matrix.toArray(),
       db.rca.toArray(),
+      db.ideas.toArray(),
     ])
     this.projects = projects.sort((a, b) => a.order - b.order)
     this.columns = columns.map((c, i) => ({ ...c, order: c.order ?? i }))
@@ -191,6 +194,7 @@ class AppStore {
     this.logs = logs
     this.matrix = matrix
     this.rcas = rcas
+    this.ideaBoards = ideaBoards
   }
 
   // Avvio dello store (chiamato da App.svelte): carica preferenze e dati, crea i dati iniziali se il database e' vuoto, assicura le viste per ogni lista, ripristina lista e vista dell'ultima sessione.
@@ -290,13 +294,14 @@ class AppStore {
     add('logs', this.logs)
     add('matrix', this.matrix)
     add('rca', this.rcas)
+    add('ideas', this.ideaBoards)
     return out
   }
 
   // Applica a IndexedDB le modifiche arrivate dalla sync o da un import (dato null = cancella), poi ricarica lo stato, rigenera le viste mancanti e corregge selezione/task aperto se spariti. Chiamata da cloud.run() e backup.importBackup().
   /** Write remote changes to IndexedDB (data === null deletes) and refresh the in-memory state. */
   async applySync(changes: Map<string, unknown | null>) {
-    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections, steps: db.steps, logs: db.logs, matrix: db.matrix, rca: db.rca }
+    const tables = { projects: db.projects, columns: db.columns, tasks: db.tasks, fields: db.fields, options: db.options, views: db.views, notes: db.notes, noteSections: db.noteSections, steps: db.steps, logs: db.logs, matrix: db.matrix, rca: db.rca, ideas: db.ideas }
     const put: Record<string, unknown[]> = {}
     const del: Record<string, string[]> = {}
     for (const [key, data] of changes) {
@@ -321,8 +326,8 @@ class AppStore {
   // Cancella tutti i dati locali (non le preferenze). Usata da backup.importBackup() e da cloud.join() su un dispositivo nuovo.
   /** Remove all local data (used when joining an existing cloud vault from a fresh device). */
   async wipeAll() {
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix, db.rca], async () => {
-      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear(), db.steps.clear(), db.logs.clear(), db.matrix.clear(), db.rca.clear()])
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.fields, db.options, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix, db.rca, db.ideas], async () => {
+      await Promise.all([db.projects.clear(), db.columns.clear(), db.tasks.clear(), db.fields.clear(), db.options.clear(), db.views.clear(), db.notes.clear(), db.noteSections.clear(), db.steps.clear(), db.logs.clear(), db.matrix.clear(), db.rca.clear(), db.ideas.clear()])
     })
     await this.loadTables()
   }
@@ -720,9 +725,11 @@ class AppStore {
     this.logs = this.logs.filter((l) => l.projectId !== id)
     this.matrix = this.matrix.filter((m) => m.projectId !== id)
     this.rcas = this.rcas.filter((r) => r.projectId !== id)
-    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix, db.rca], async () => {
+    this.ideaBoards = this.ideaBoards.filter((b) => b.projectId !== id)
+    await db.transaction('rw', [db.projects, db.columns, db.tasks, db.views, db.notes, db.noteSections, db.steps, db.logs, db.matrix, db.rca, db.ideas], async () => {
       await db.matrix.where('projectId').equals(id).delete()
       await db.rca.where('projectId').equals(id).delete()
+      await db.ideas.where('projectId').equals(id).delete()
       await db.steps.where('projectId').equals(id).delete()
       await db.logs.where('projectId').equals(id).delete()
       await db.projects.delete(id)
@@ -1196,6 +1203,28 @@ class AppStore {
     this.setPref('rcaId', id)
     this.openTaskId = null
     this.toolsOpen = true
+  }
+
+  // ---------- lavagne di idee (tool "Ideas") ----------
+  // Lavagne della lista corrente. Usata da Ideas.svelte.
+  ideaList = $derived(this.ideaBoards.filter((b) => b.projectId === this.currentProjectId))
+  // Crea una lavagna con i criteri iniziali (modificabili) e nessuna idea.
+  async addIdeaBoard(title: string): Promise<IdeaBoard> {
+    const b: IdeaBoard = { id: uid(), projectId: this.currentProjectId, title, criteria: defaultCriteria(), ideas: [], updated: Date.now() }
+    this.ideaBoards.push(b)
+    await db.ideas.put(plain(b))
+    return b
+  }
+  // Aggiorna titolo / criteri / idee di una lavagna e ne salva lo stato. Le idee e i criteri si passano per intero (come updateRca con i nodi).
+  async updateIdeaBoard(id: string, patch: { title?: string; criteria?: IdeaCriterion[]; ideas?: IdeaItem[] }) {
+    const b = this.ideaBoards.find((x) => x.id === id)
+    if (!b) return
+    Object.assign(b, patch, { updated: Date.now() })
+    await db.ideas.put(plain(b))
+  }
+  async removeIdeaBoard(id: string) {
+    this.ideaBoards = this.ideaBoards.filter((b) => b.id !== id)
+    await db.ideas.delete(id)
   }
 
   // ---------- tracciamento (passi + diario) ----------

@@ -209,6 +209,39 @@ export interface Rca {
   updated: number
 }
 
+// Un CRITERIO di valutazione di una lavagna di idee. group: 'v' conta come VALORE (asse verticale della mappa), 'e' come FACILITA' (asse orizzontale). w = peso 0-3.
+export interface IdeaCriterion {
+  id: string
+  name: string
+  hint: string // domanda guida
+  scale: string // come si legge la scala 1-5
+  group: 'v' | 'e'
+  w: number
+}
+
+// Un'IDEA da valutare. scores: criterio -> voto 1-5 (assente = non votato). status: stato nella discussione.
+export interface IdeaItem {
+  id: string
+  title: string
+  description: string
+  category: string
+  prompt: string // spunto di discussione
+  scores: Record<string, number>
+  status: 'disc' | 'appr' | 'ok' | 'no'
+  note: string
+  removed?: boolean // rimossa dall'elenco (ripristinabile)
+}
+
+// Una LAVAGNA DI IDEE ("Idee imprenditoriali: votiamo"): criteri pesati e idee con i voti, tutto nello stesso record (si sincronizza e si salva nei backup come gli altri).
+export interface IdeaBoard {
+  id: string
+  projectId: string
+  title: string
+  criteria: IdeaCriterion[]
+  ideas: IdeaItem[]
+  updated: number
+}
+
 export interface NoteSection {
   id: string
   projectId: string
