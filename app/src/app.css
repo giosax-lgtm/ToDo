@@ -70,6 +70,9 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .column { flex: none; width: var(--col-w, 20.7143rem); border-radius: 0.8571rem; padding: 0.5714rem; display: flex; flex-direction: column; gap: 0.5714rem; max-height: 100%; }
 .column header { display: flex; justify-content: space-between; align-items: center; position: relative; padding: 2px 0.2857rem; }
 .column h3 { margin: 0; font-size: calc(1rem * var(--ts, 1)); }
+.column.collapsed { width: 2.8571rem; align-items: center; cursor: default; }
+.col-vert { writing-mode: vertical-rl; background: none; border: 0; cursor: pointer; font-weight: 700; font-size: calc(1rem * var(--ts, 1)); padding: 0.4rem 0; }
+.col-vert small { font-weight: 400; opacity: .7; }
 .column h3 small { font-weight: 400; opacity: .7; margin-left: 0.2857rem; }
 .col-name-input { width: 12.1429rem; padding: 0.2143rem 0.4286rem; border-radius: 0.4286rem; border: 1px solid var(--border); }
 .col-actions { display: flex; position: relative; }

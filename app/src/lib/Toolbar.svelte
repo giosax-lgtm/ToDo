@@ -185,9 +185,11 @@
           <button class:sel={d.layout === 'gantt'} onclick={() => store.updateDraft({ layout: 'gantt' })}>▬<br />Gantt</button>
           <button class:sel={d.layout === 'dashboard'} onclick={() => store.updateDraft({ layout: 'dashboard' })}>◔<br />Dashboard</button>
         </div>
+        {#if d.groupBy !== 'status'}
         <label class="toggle row">Show completed items
           <input type="checkbox" checked={d.showCompleted} onchange={(e) => store.updateDraft({ showCompleted: e.currentTarget.checked })} />
         </label>
+        {/if}
       </div>
     {/if}
   </div>

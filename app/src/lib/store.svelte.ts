@@ -18,6 +18,7 @@ const uid = () => crypto.randomUUID()
 const plain = <T>(v: T): T => $state.snapshot(v) as T
 // Valore speciale 'nessuno' per filtri e gruppi (es. task senza alcun tag di un campo).
 const NONE = '__none'
+const DONE_GROUP = '__done'
 
 // Data -> 'yyyy-mm-dd' nel fuso orario LOCALE (toISOString userebbe l'UTC e sbaglierebbe giorno di notte).
 const isoDay = (d: Date) => {
@@ -508,7 +509,8 @@ class AppStore {
   matches(t: Task, withDone = false) {
     const v = this.draft
     if (t.projectId !== this.currentProjectId) return false
-    if (!withDone && !v.showCompleted && t.done) return false
+    // Raggruppando per stato i completati stanno sempre nella colonna Done (che si puo' comprimere), quindi non vanno nascosti.
+    if (!withDone && !v.showCompleted && t.done && v.groupBy !== 'status') return false
     const s = v.search.trim().toLowerCase()
     if (s && !(t.title + ' ' + descPlain(t.description)).toLowerCase().includes(s)) return false
     for (const f of v.filters) {
@@ -533,9 +535,13 @@ class AppStore {
     if (key === 'none')
       return [{ key: 'all', label: 'All items', color: 'gray', editable: null, fixed: true, apply: () => ({}) }]
     if (key === 'status')
-      return this.projectColumns.map((c) => ({
-        key: c.id, label: c.name, color: c.color, editable: 'status' as const, apply: () => ({ columnId: c.id }),
-      }))
+      return [
+        ...this.projectColumns.map((c) => ({
+          key: c.id, label: c.name, color: c.color, editable: 'status' as const, apply: () => ({ columnId: c.id, done: false }),
+        })),
+        // Colonna fissa dei completati: un task done sta qui (se 'Show completed items' e' attivo); trascinarvi una card la completa.
+        { key: DONE_GROUP, label: 'Done', color: 'green', editable: null, fixed: true, apply: () => ({ done: true }) },
+      ]
     if (key === 'priority')
       return ([5, 4, 3, 2, 1, 0] as const).map((p) => ({
         key: String(p), label: p ? '★'.repeat(p) : 'No priority', color: p ? 'yellow' : 'gray', editable: null,
@@ -569,6 +575,7 @@ class AppStore {
   // In quali gruppi compare un task (un task con piu' tag puo' stare in piu' gruppi).
   groupKeys(t: Task): string[] {
     const key = this.draft.groupBy
+    if (key === 'status' && t.done) return [DONE_GROUP]
     return key === 'none' ? ['all'] : this.valuesOf(t, key)
   }
 
@@ -614,7 +621,8 @@ class AppStore {
       const patch = g.apply?.(t)
       if (!patch) return
       const before = { columnId: t.columnId, done: t.done, due: t.due }
-      Object.assign(t, patch, { updatedAt: Date.now() })
+      const p: Partial<Task> = patch.done !== undefined && patch.done !== t.done ? { ...patch, doneAt: patch.done ? today() : null } : patch
+      Object.assign(t, p, { updatedAt: Date.now() })
       void this.logTaskChange(t, before)
     }
     if (this.draft.sort) {

@@ -19,6 +19,13 @@
   let menu = $state(false)
   let editing = $state(false)
 
+  // Colonna compressa (solo titolo in verticale): preferenza persistita per gruppo.
+  const collapsed = $derived(store.pref<string[]>('collapsedCols', []).includes(group.key))
+  function toggle() {
+    const cur = store.pref<string[]>('collapsedCols', [])
+    store.setPref('collapsedCols', collapsed ? cur.filter((k) => k !== group.key) : [...cur, group.key])
+  }
+
   // Task visibili del gruppo, colore della colonna e se si possono aggiungere/rilasciare card (group.apply non nullo).
   const tasks = $derived(store.groupTasks(group))
   const c = $derived(COLORS[group.color] ?? COLORS.gray)
@@ -46,6 +53,12 @@
   }
 </script>
 
+{#if collapsed}
+  <section class="column collapsed" class:fixed={group.fixed} data-id={group.key} style:background={c.col}>
+    <button class="icon" title="Expand" onclick={toggle}>»</button>
+    <button class="col-vert" style:color={c.fg} title="Expand" onclick={toggle}>{group.label} <small>{tasks.length}</small></button>
+  </section>
+{:else}
 <section class="column" class:fixed={group.fixed} data-id={group.key} style:background={c.col}>
   <header>
     {#if group.editable}<span class="col-grip" title="Drag to reorder">⠿</span>{/if}
@@ -57,6 +70,7 @@
       <h3 style:color={c.fg} ondblclick={() => group.editable && (editing = true)}>{group.label} <small>{tasks.length}</small></h3>
     {/if}
     <div class="col-actions">
+      <button class="icon" title="Collapse" onclick={toggle}>«</button>
       {#if canAdd}<button class="icon" title="Add item" onclick={() => (adding = true)}>+</button>{/if}
       {#if group.editable}
         <button class="icon" title="Options" onclick={() => (menu = !menu)}>⋯</button>
@@ -89,3 +103,4 @@
     <button class="add-item" onclick={() => (adding = true)}>+ Add item</button>
   {/if}
 </section>
+{/if}
